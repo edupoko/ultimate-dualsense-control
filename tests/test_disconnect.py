@@ -9,10 +9,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication, QPushButton
 
-from dualsense_led import bluetooth, i18n
-from dualsense_led.service import LedService
-from dualsense_led.tray import TrayIcon
-from dualsense_led.widgets import DisconnectRow
+from dualsense_ultimate_control import bluetooth, i18n
+from dualsense_ultimate_control.service import LedService
+from dualsense_ultimate_control.tray import TrayIcon
+from dualsense_ultimate_control.widgets import DisconnectRow
 from test_sysfs import make_led, write_uevent
 
 
@@ -93,7 +93,7 @@ class BluetoothCommandTest(unittest.TestCase):
         process = mock.Mock(returncode=0)
         process.communicate.return_value = ("Attempting to disconnect\nDisconnection successful\n", None)
         with mock.patch.object(subprocess, "Popen", return_value=process) as popen:
-            with self.assertLogs("dualsense_led.bluetooth", level="INFO") as captured:
+            with self.assertLogs("dualsense_ultimate_control.bluetooth", level="INFO") as captured:
                 bluetooth.disconnect("bc:c7:46:32:3c:58")
                 for thread in __import__("threading").enumerate():
                     if thread is not __import__("threading").current_thread():
@@ -103,7 +103,7 @@ class BluetoothCommandTest(unittest.TestCase):
 
     def test_missing_bluetoothctl_is_logged_not_raised(self):
         with mock.patch.object(subprocess, "Popen", side_effect=FileNotFoundError("bluetoothctl")):
-            with self.assertLogs("dualsense_led.bluetooth", level="WARNING"):
+            with self.assertLogs("dualsense_ultimate_control.bluetooth", level="WARNING"):
                 bluetooth.disconnect("bc:c7:46:32:3c:58")
 
 

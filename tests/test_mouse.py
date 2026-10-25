@@ -4,11 +4,11 @@ from pathlib import Path
 
 from evdev import ecodes
 
-from dualsense_led.ds5.imu import DEFAULT_GYRO_SCALE
-from dualsense_led.ds5.reports import InputState as Report, Touch
-from dualsense_led.emulator import core
-from dualsense_led.emulator.mapping import Mapper, Profile
-from dualsense_led.emulator.mouse import SCROLL_STEP, SENSOR_TICKS_PER_SECOND, TOUCH_PIXELS, MouseTracker, sibling_nodes
+from dualsense_ultimate_control.ds5.imu import DEFAULT_GYRO_SCALE
+from dualsense_ultimate_control.ds5.reports import InputState as Report, Touch
+from dualsense_ultimate_control.emulator import core
+from dualsense_ultimate_control.emulator.mapping import Mapper, Profile
+from dualsense_ultimate_control.emulator.mouse import SCROLL_STEP, SENSOR_TICKS_PER_SECOND, TOUCH_PIXELS, MouseTracker, sibling_nodes
 
 TICKS_10MS = SENSOR_TICKS_PER_SECOND // 100
 

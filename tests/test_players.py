@@ -1,6 +1,6 @@
 import unittest
 
-from dualsense_led.players import NO_PLAYER, PLAYER_PATTERNS, pattern_for, player_number
+from dualsense_ultimate_control.players import NO_PLAYER, PLAYER_PATTERNS, pattern_for, player_number
 
 
 class PlayerPatternsTest(unittest.TestCase):

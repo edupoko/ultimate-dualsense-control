@@ -1,4 +1,4 @@
-"""Liga e desliga a emulação de Xbox 360, que roda num processo separado (`dualsense_led.emulator`).
+"""Liga e desliga a emulação de Xbox 360, que roda num processo separado (`dualsense_ultimate_control.emulator`).
 
 Processo à parte porque a emulação não usa o Qt e precisa seguir repassando eventos mesmo com
 a interface ocupada; parar o processo solta o grab e some com os controles virtuais.
@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 # Quanto esperar o processo encerrar sozinho (SIGTERM) antes de forçar.
 STOP_TIMEOUT_MS = 3000
 
-SERVICE_UNIT = "dualsense-led-emulator.service"
+SERVICE_UNIT = "dualsense-ultimate-control-emulator.service"
 
 
 def service_active(unit: str = SERVICE_UNIT) -> bool:
@@ -46,7 +46,7 @@ class EmulationProcess(QObject):
         super().__init__(parent)
         self._service_probe = service_probe
         self._program = program
-        self._arguments = ["-m", "dualsense_led.emulator"] if arguments is None else arguments
+        self._arguments = ["-m", "dualsense_ultimate_control.emulator"] if arguments is None else arguments
         self._process: QProcess | None = None
         self._stopping = False
         self._last_line = ""

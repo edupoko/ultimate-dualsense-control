@@ -6,7 +6,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtWidgets import QApplication, QLabel
 
-from dualsense_led.popup import TrayPopup
+from dualsense_ultimate_control.popup import TrayPopup
 
 
 class TrayPopupTest(unittest.TestCase):

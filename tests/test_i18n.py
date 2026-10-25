@@ -8,16 +8,16 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication, QComboBox, QLabel, QPushButton
 
-from dualsense_led import i18n
-from dualsense_led.colors import PRESETS
-from dualsense_led.service import LedService
-from dualsense_led.settings import load_settings
-from dualsense_led.translations import STRINGS
-from dualsense_led.tray import TrayIcon
-from dualsense_led.widgets import LanguageRow
-from dualsense_led.window import MainWindow
+from dualsense_ultimate_control import i18n
+from dualsense_ultimate_control.colors import PRESETS
+from dualsense_ultimate_control.service import LedService
+from dualsense_ultimate_control.settings import load_settings
+from dualsense_ultimate_control.translations import STRINGS
+from dualsense_ultimate_control.tray import TrayIcon
+from dualsense_ultimate_control.widgets import LanguageRow
+from dualsense_ultimate_control.window import MainWindow
 
-SOURCE = Path(__file__).resolve().parent.parent / "src" / "dualsense_led"
+SOURCE = Path(__file__).resolve().parent.parent / "src" / "dualsense_ultimate_control"
 
 
 class CatalogTest(unittest.TestCase):
@@ -107,7 +107,7 @@ class LanguageSwitchTest(unittest.TestCase):
 
     def test_color_names_are_translated(self):
         from PySide6.QtWidgets import QToolButton
-        from dualsense_led.widgets import ColorPalette
+        from dualsense_ultimate_control.widgets import ColorPalette
         palette = ColorPalette(self.service)
         names = lambda: {b.accessibleName() for b in palette.findChildren(QToolButton)}
         self.assertIn("Vermelho", names())

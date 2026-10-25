@@ -8,7 +8,7 @@ import shlex
 import sys
 from pathlib import Path
 
-FILE_NAME = "dualsense-led.desktop"
+FILE_NAME = "dualsense-ultimate-control.desktop"
 
 log = logging.getLogger(__name__)
 
@@ -20,10 +20,10 @@ def autostart_file() -> Path:
 
 def launch_command() -> str:
     """Comando que abre este app só na bandeja, a partir do ambiente em que ele está rodando."""
-    script = Path(sys.executable).parent / "dualsense-led"
+    script = Path(sys.executable).parent / "dualsense-ultimate-control"
     if script.is_file():
         return f"{shlex.quote(str(script))} --tray"
-    return f"{shlex.quote(sys.executable)} -m dualsense_led --tray"
+    return f"{shlex.quote(sys.executable)} -m dualsense_ultimate_control --tray"
 
 
 def is_enabled(path: Path | None = None) -> bool:
@@ -50,7 +50,7 @@ def set_enabled(enabled: bool, path: Path | None = None, command: str | None = N
         "Comment[en]=Applies the DualSense colors and stays in the tray\n"
         "Comment[es]=Aplica los colores del DualSense y se queda en la bandeja\n"
         f"Exec={command or launch_command()}\n"
-        "Icon=dualsense-led\n"
+        "Icon=dualsense-ultimate-control\n"
         "Terminal=false\n"
         "X-GNOME-Autostart-enabled=true\n"
     )

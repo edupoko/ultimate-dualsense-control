@@ -2,7 +2,7 @@ import unittest
 
 from PySide6.QtCore import QPoint, QRect, QSize
 
-from dualsense_led.widgets import tray_corner_position
+from dualsense_ultimate_control.widgets import tray_corner_position
 
 SCREEN = QRect(0, 0, 1920, 1080)
 SIZE = QSize(470, 400)

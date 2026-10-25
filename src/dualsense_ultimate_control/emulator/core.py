@@ -178,7 +178,7 @@ class Bridge:
                 product=X360_PRODUCT,
                 version=X360_VERSION,
                 bustype=ecodes.BUS_USB,
-                phys=f"dualsense-led/{physical.uniq or physical.path}",  # distingue os virtuais entre si
+                phys=f"dualsense-ultimate-control/{physical.uniq or physical.path}",  # distingue os virtuais entre si
             )
         except BaseException:
             physical.close()

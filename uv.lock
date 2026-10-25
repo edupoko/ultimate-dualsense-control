@@ -7,7 +7,7 @@ resolution-markers = [
 ]
 
 [[package]]
-name = "dualsense-led"
+name = "dualsense-ultimate-control"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

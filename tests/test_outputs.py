@@ -9,9 +9,9 @@ from PySide6.QtWidgets import QApplication
 
 from test_sysfs import make_led, write_uevent  # noqa: F401  (mantém o mesmo ambiente dos outros testes)
 
-from dualsense_led.ds5 import triggers
-from dualsense_led.service import LedService
-from dualsense_led.testpanel.outputs import OutputPanel
+from dualsense_ultimate_control.ds5 import triggers
+from dualsense_ultimate_control.service import LedService
+from dualsense_ultimate_control.testpanel.outputs import OutputPanel
 
 
 class FakeDevice:

@@ -3,8 +3,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from dualsense_led import settings
-from dualsense_led.settings import AppSettings, load_settings, save_settings
+from dualsense_ultimate_control import settings
+from dualsense_ultimate_control.settings import AppSettings, load_settings, save_settings
 
 
 class SaveSettingsTests(unittest.TestCase):

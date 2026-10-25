@@ -1,4 +1,4 @@
-"""Ponto de entrada: python -m dualsense_led [--tray]"""
+"""Ponto de entrada: python -m dualsense_ultimate_control [--tray]"""
 
 from __future__ import annotations
 
@@ -23,6 +23,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon
 from . import __version__, kdetheme, logs
 from .emulation import EmulationProcess
 from .i18n import tr
+from .migrate import migrate_legacy
 from .service import LedService
 from .settings import default_settings_path
 from .tray import TrayIcon
@@ -30,8 +31,8 @@ from .window import MainWindow, app_icon
 
 # Uma única instância: a trava de arquivo decide quem é a instância principal (sem corrida
 # entre dois inícios simultâneos), e o socket local é como as outras pedem para ela mostrar
-# a janela. DUALSENSE_LED_INSTANCE troca o nome, para testes não esbarrarem no app aberto.
-INSTANCE_NAME = os.environ.get("DUALSENSE_LED_INSTANCE", "dualsense-led")
+# a janela. DUALSENSE_ULTIMATE_INSTANCE troca o nome, para testes não esbarrarem no app aberto.
+INSTANCE_NAME = os.environ.get("DUALSENSE_ULTIMATE_INSTANCE", "dualsense-ultimate-control")
 SERVER_NAME = INSTANCE_NAME
 # Quanto esperar a instância principal criar o socket, caso ela ainda esteja iniciando.
 SIGNAL_TIMEOUT_MS = 5000
@@ -41,13 +42,14 @@ _instance_lock: int | None = None
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="dualsense-led", description="Controle dos LEDs do DualSense.")
+    parser = argparse.ArgumentParser(prog="dualsense-ultimate-control", description="Controle dos LEDs do DualSense.")
     parser.add_argument("--tray", action="store_true", help="inicia só na bandeja, sem abrir a janela")
     parser.add_argument("--logs", action="store_true", help="mostra o caminho e o fim do arquivo de log e sai")
     parser.add_argument("--debug", action="store_true", help="registra também mensagens de depuração")
     parser.add_argument("--quit", action="store_true", help="pede para o app que já está aberto encerrar e sai")
     parser.add_argument("--emulate", action="store_true", help="roda só a emulação de Xbox 360 (sem interface) e sai com Ctrl+C")
     args, qt_args = parser.parse_known_args(sys.argv[1:] if argv is None else argv)
+    migrate_legacy()
     if args.emulate:
         from .emulator.__main__ import run
 
@@ -80,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
     app = QApplication([sys.argv[0], *qt_args])
     logging.info("Iniciando %s %s (Qt %s, plataforma %s)", "DualSense Ultimate Control", __version__, qVersion(), app.platformName())
     app.setApplicationName("DualSense Ultimate Control")
-    app.setDesktopFileName("dualsense-led")
+    app.setDesktopFileName("dualsense-ultimate-control")
     app.setWindowIcon(app_icon())
 
     # Uma versão antiga do app (sem a trava) pode estar aberta; nesse caso ela continua sendo a única.
@@ -193,7 +195,7 @@ def _arm_exit_watchdog(exit_code: int, seconds: float = EXIT_TIMEOUT_SECONDS) ->
 
 
 def _quit_running_instance(wait_seconds: float = 10.0) -> int:
-    """`dualsense-led --quit`: pede à instância aberta que encerre e espera ela terminar."""
+    """`dualsense-ultimate-control --quit`: pede à instância aberta que encerre e espera ela terminar."""
     signaller = QCoreApplication([sys.argv[0]])
     if _acquire_instance_lock():
         print("O DualSense Ultimate Control não está aberto.")
@@ -213,7 +215,7 @@ def _quit_running_instance(wait_seconds: float = 10.0) -> int:
 
 
 def _print_logs(lines: int = 40) -> int:
-    """`dualsense-led --logs`: onde está o log e as últimas linhas, sem abrir a interface."""
+    """`dualsense-ultimate-control --logs`: onde está o log e as últimas linhas, sem abrir a interface."""
     print(f"Log: {logs.log_path()}")
     print(f"Travamentos: {logs.crash_path()}")
     text = logs.read_log()

@@ -7,9 +7,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication
 
-from dualsense_led.colors import MAX_CUSTOM_COLORS
-from dualsense_led.service import LedService
-from dualsense_led.settings import load_settings
+from dualsense_ultimate_control.colors import MAX_CUSTOM_COLORS
+from dualsense_ultimate_control.service import LedService
+from dualsense_ultimate_control.settings import load_settings
 from test_sysfs import make_led, write_uevent
 
 DEVICE = "0003:054C:0CE6.000D"

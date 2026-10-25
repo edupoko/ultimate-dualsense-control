@@ -4,7 +4,7 @@ Documentation=file://@PROJECT_DIR@/README.md
 
 [Service]
 Type=simple
-ExecStart=@PYTHON@ -m dualsense_led.emulator
+ExecStart=@PYTHON@ -m dualsense_ultimate_control.emulator
 # SIGTERM: o emulador solta o grab dos controles antes de sair.
 KillSignal=SIGTERM
 Restart=on-failure

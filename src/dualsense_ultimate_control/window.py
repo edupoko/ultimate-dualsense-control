@@ -46,7 +46,7 @@ from .widgets import (
     show_steam_help,
 )
 
-ICON_PATH = Path(__file__).with_name("icons") / "dualsense-led.svg"
+ICON_PATH = Path(__file__).with_name("icons") / "dualsense-ultimate-control.svg"
 
 def app_icon() -> QIcon:
     return QIcon(str(ICON_PATH))

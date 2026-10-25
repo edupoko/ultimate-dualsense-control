@@ -3,8 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from dualsense_led.settings import AppSettings, LightSettings, load_settings, save_settings
-from dualsense_led.sysfs import find_controllers
+from dualsense_ultimate_control.settings import AppSettings, LightSettings, load_settings, save_settings
+from dualsense_ultimate_control.sysfs import find_controllers
 
 
 def make_led(root: Path, name: str, device: str, files=("brightness",)) -> Path:

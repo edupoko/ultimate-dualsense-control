@@ -12,7 +12,7 @@ from .i18n import tr
 
 log = logging.getLogger(__name__)
 
-RULE_NAME = "70-dualsense-led.rules"
+RULE_NAME = "70-dualsense-ultimate-control.rules"
 RULE_SOURCE = Path(__file__).with_name("data") / RULE_NAME
 RULE_TARGET = Path("/etc/udev/rules.d") / RULE_NAME
 

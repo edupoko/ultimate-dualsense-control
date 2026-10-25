@@ -6,9 +6,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication
 
-from dualsense_led.ds5.reports import InputState, Touch
-from dualsense_led.testpanel.model import ImuHistory, peak_level, RangeTracker, normalize_stick, stick_point
-from dualsense_led.testpanel.widgets import ControllerView, ImuPlot, StickView, TouchpadView
+from dualsense_ultimate_control.ds5.reports import InputState, Touch
+from dualsense_ultimate_control.testpanel.model import ImuHistory, peak_level, RangeTracker, normalize_stick, stick_point
+from dualsense_ultimate_control.testpanel.widgets import ControllerView, ImuPlot, StickView, TouchpadView
 
 
 def make_state(**overrides) -> InputState:

@@ -4,8 +4,8 @@ from unittest import mock
 
 from evdev import ecodes
 
-from dualsense_led.emulator import core
-from dualsense_led.emulator.mapping import BUTTON_SOURCES, XBOX_TARGETS, Mapper, Profile
+from dualsense_ultimate_control.emulator import core
+from dualsense_ultimate_control.emulator.mapping import BUTTON_SOURCES, XBOX_TARGETS, Mapper, Profile
 
 
 class ScaleStickTests(unittest.TestCase):

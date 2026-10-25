@@ -3,9 +3,9 @@ import socket
 import tempfile
 import unittest
 
-from dualsense_led.ds5 import reports
-from dualsense_led.ds5.device import DualSenseDevice
-from dualsense_led.ds5.reports import BT_INPUT_CRC_SEED, BT_INPUT_SIZE, USB_INPUT_SIZE, bt_crc, build_output_report, parse_input_report
+from dualsense_ultimate_control.ds5 import reports
+from dualsense_ultimate_control.ds5.device import DualSenseDevice
+from dualsense_ultimate_control.ds5.reports import BT_INPUT_CRC_SEED, BT_INPUT_SIZE, USB_INPUT_SIZE, bt_crc, build_output_report, parse_input_report
 
 
 def make_block(**fields) -> bytearray:

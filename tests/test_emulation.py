@@ -9,10 +9,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import QCoreApplication, QEventLoop, QTimer
 from PySide6.QtWidgets import QApplication
 
-from dualsense_led.emulation import EmulationProcess
-from dualsense_led.service import LedService
-from dualsense_led.settings import load_settings
-from dualsense_led.widgets import EmulationRow
+from dualsense_ultimate_control.emulation import EmulationProcess
+from dualsense_ultimate_control.service import LedService
+from dualsense_ultimate_control.settings import load_settings
+from dualsense_ultimate_control.widgets import EmulationRow
 from test_sysfs import make_led, write_uevent
 
 

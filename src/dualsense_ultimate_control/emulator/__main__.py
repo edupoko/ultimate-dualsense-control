@@ -1,4 +1,4 @@
-"""Daemon da emulação: python -m dualsense_led.emulator (ou dualsense-led --emulate)."""
+"""Daemon da emulação: python -m dualsense_ultimate_control.emulator (ou dualsense-ultimate-control --emulate)."""
 
 from __future__ import annotations
 
@@ -7,12 +7,14 @@ import logging
 import os
 import signal
 
+from ..migrate import migrate_legacy
 from .core import Emulator
 
 UINPUT = "/dev/uinput"
 
 
 def run() -> int:
+    migrate_legacy()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     if not os.access(UINPUT, os.R_OK | os.W_OK):
         logging.error("Sem permissão para usar %s (o usuário precisa estar no grupo input)", UINPUT)

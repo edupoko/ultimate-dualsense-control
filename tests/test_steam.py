@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from dualsense_led.steam import hidraw_held_by_steam
+from dualsense_ultimate_control.steam import hidraw_held_by_steam
 
 
 def fake_process(proc: Path, pid: int, comm: str, targets: list[str]) -> None:

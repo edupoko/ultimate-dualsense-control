@@ -7,9 +7,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication, QToolButton
 
-from dualsense_led.service import LedService
-from dualsense_led.settings import load_settings
-from dualsense_led.widgets import AutoPlayersRow, PlayerRow, ToggleSwitch
+from dualsense_ultimate_control.service import LedService
+from dualsense_ultimate_control.settings import load_settings
+from dualsense_ultimate_control.widgets import AutoPlayersRow, PlayerRow, ToggleSwitch
 from test_sysfs import make_led, write_uevent
 
 

@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 CHECK = (
-    "import dualsense_led.__main__ as entry; "
+    "import dualsense_ultimate_control.__main__ as entry; "
     "print('principal' if entry._acquire_instance_lock() else 'secundaria')"
 )
 
@@ -15,7 +15,7 @@ class SingleInstanceLockTest(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
-        self.env = dict(os.environ, XDG_RUNTIME_DIR=self._tmp.name, DUALSENSE_LED_INSTANCE="dsled-unit-test")
+        self.env = dict(os.environ, XDG_RUNTIME_DIR=self._tmp.name, DUALSENSE_ULTIMATE_INSTANCE="dsled-unit-test")
 
     def check(self) -> str:
         result = subprocess.run([sys.executable, "-c", CHECK], env=self.env, capture_output=True, text=True, timeout=60)

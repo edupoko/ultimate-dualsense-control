@@ -7,8 +7,8 @@ from PySide6.QtGui import QColor, QGuiApplication
 
 from PySide6.QtSvg import QSvgRenderer
 
-from dualsense_led import trayicon
-from dualsense_led.window import ICON_PATH, app_icon
+from dualsense_ultimate_control import trayicon
+from dualsense_ultimate_control.window import ICON_PATH, app_icon
 
 LINE = QColor(240, 240, 240)
 

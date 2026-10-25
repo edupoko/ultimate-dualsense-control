@@ -12,8 +12,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication
 
-from dualsense_led import i18n, logs
-from dualsense_led.logview import FILTER_PROBLEMS, LogWindow
+from dualsense_ultimate_control import i18n, logs
+from dualsense_ultimate_control.logview import FILTER_PROBLEMS, LogWindow
 
 
 class LogsTestCase(unittest.TestCase):
@@ -40,10 +40,10 @@ class LogsTestCase(unittest.TestCase):
 class FileLoggingTest(LogsTestCase):
     def test_records_go_to_the_log_file_in_the_state_folder(self):
         path = logs.setup_logging(install_hooks=False)
-        self.assertEqual(path, Path(self._tmp.name) / "dualsense-led" / "dualsense-led.log")
-        logging.getLogger("dualsense_led.teste").info("controle conectado")
+        self.assertEqual(path, Path(self._tmp.name) / "dualsense-ultimate-control" / "dualsense-ultimate-control.log")
+        logging.getLogger("dualsense_ultimate_control.teste").info("controle conectado")
         text = path.read_text()
-        self.assertRegex(text, r"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d INFO dualsense_led.teste: controle conectado$")
+        self.assertRegex(text, r"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d INFO dualsense_ultimate_control.teste: controle conectado$")
 
     def test_calling_setup_twice_does_not_duplicate_lines(self):
         logs.setup_logging(install_hooks=False)
@@ -71,7 +71,7 @@ class FileLoggingTest(LogsTestCase):
         except ValueError:
             logs._log_uncaught_exception(*sys.exc_info())
         text = logs.log_path().read_text()
-        self.assertIn("CRITICAL dualsense_led: Erro não tratado", text)
+        self.assertIn("CRITICAL dualsense_ultimate_control: Erro não tratado", text)
         self.assertIn("ValueError: quebrou", text)
 
 
@@ -183,7 +183,7 @@ class CommandLineTest(LogsTestCase):
         logging.getLogger("a").info("linha de teste")
         env = dict(os.environ, XDG_STATE_HOME=self._tmp.name)
         result = subprocess.run(
-            [sys.executable, "-m", "dualsense_led", "--logs"], env=env, capture_output=True, text=True, timeout=60
+            [sys.executable, "-m", "dualsense_ultimate_control", "--logs"], env=env, capture_output=True, text=True, timeout=60
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn(str(logs.log_path()), result.stdout)

@@ -11,11 +11,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication, QPushButton
 
-import dualsense_led.__main__ as entry
-from dualsense_led.i18n import tr
-from dualsense_led.service import LedService
-from dualsense_led.tray import TrayIcon
-from dualsense_led.window import MainWindow
+import dualsense_ultimate_control.__main__ as entry
+from dualsense_ultimate_control.i18n import tr
+from dualsense_ultimate_control.service import LedService
+from dualsense_ultimate_control.tray import TrayIcon
+from dualsense_ultimate_control.window import MainWindow
 
 
 class CloseButtonTest(unittest.TestCase):
@@ -78,13 +78,13 @@ class QuitCommandTest(unittest.TestCase):
     def test_quit_command_ends_a_running_instance_and_reports_it(self):
         env = dict(
             os.environ,
-            DUALSENSE_LED_INSTANCE="dsled-quit-test",
+            DUALSENSE_ULTIMATE_INSTANCE="dsled-quit-test",
             XDG_RUNTIME_DIR=tempfile.mkdtemp(),
             XDG_CONFIG_HOME=tempfile.mkdtemp(),
             XDG_STATE_HOME=tempfile.mkdtemp(),
             QT_QPA_PLATFORM="offscreen",
         )
-        app = subprocess.Popen([sys.executable, "-m", "dualsense_led", "--tray"], env=env, stderr=subprocess.DEVNULL)
+        app = subprocess.Popen([sys.executable, "-m", "dualsense_ultimate_control", "--tray"], env=env, stderr=subprocess.DEVNULL)
         self.addCleanup(app.kill)
         # Espera a instância principal estar de pé (o socket existe).
         socket_file = Path(env["XDG_RUNTIME_DIR"]) / "dsled-quit-test"
@@ -93,17 +93,17 @@ class QuitCommandTest(unittest.TestCase):
                 break
             threading.Event().wait(0.1)
         result = subprocess.run(
-            [sys.executable, "-m", "dualsense_led", "--quit"], env=env, capture_output=True, text=True, timeout=60
+            [sys.executable, "-m", "dualsense_ultimate_control", "--quit"], env=env, capture_output=True, text=True, timeout=60
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("encerrado", result.stdout)
         self.assertEqual(app.wait(timeout=15), 0)
 
     def test_quit_without_a_running_instance_says_so(self):
-        env = dict(os.environ, DUALSENSE_LED_INSTANCE="dsled-quit-none", XDG_RUNTIME_DIR=tempfile.mkdtemp(),
+        env = dict(os.environ, DUALSENSE_ULTIMATE_INSTANCE="dsled-quit-none", XDG_RUNTIME_DIR=tempfile.mkdtemp(),
                    XDG_STATE_HOME=tempfile.mkdtemp(), QT_QPA_PLATFORM="offscreen")
         result = subprocess.run(
-            [sys.executable, "-m", "dualsense_led", "--quit"], env=env, capture_output=True, text=True, timeout=60
+            [sys.executable, "-m", "dualsense_ultimate_control", "--quit"], env=env, capture_output=True, text=True, timeout=60
         )
         self.assertEqual(result.returncode, 0)
         self.assertIn("não está aberto", result.stdout)

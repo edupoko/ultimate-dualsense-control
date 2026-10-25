@@ -8,22 +8,22 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication
 
-from dualsense_led import autostart
-from dualsense_led.service import LedService
-from dualsense_led.widgets import AutostartRow, CloseToTrayRow, ToggleSwitch
-from dualsense_led.window import MainWindow
+from dualsense_ultimate_control import autostart
+from dualsense_ultimate_control.service import LedService
+from dualsense_ultimate_control.widgets import AutostartRow, CloseToTrayRow, ToggleSwitch
+from dualsense_ultimate_control.window import MainWindow
 
 
 class AutostartFileTest(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
-        self.path = Path(self._tmp.name) / "autostart" / "dualsense-led.desktop"
+        self.path = Path(self._tmp.name) / "autostart" / "dualsense-ultimate-control.desktop"
 
     def test_enable_writes_entry_that_starts_in_the_tray(self):
-        autostart.set_enabled(True, self.path, command="/opt/app/dualsense-led --tray")
+        autostart.set_enabled(True, self.path, command="/opt/app/dualsense-ultimate-control --tray")
         self.assertTrue(autostart.is_enabled(self.path))
-        self.assertIn("Exec=/opt/app/dualsense-led --tray", self.path.read_text())
+        self.assertIn("Exec=/opt/app/dualsense-ultimate-control --tray", self.path.read_text())
 
     def test_disable_removes_entry(self):
         autostart.set_enabled(True, self.path, command="x --tray")

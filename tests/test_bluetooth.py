@@ -2,7 +2,7 @@ import json
 import unittest
 from types import SimpleNamespace
 
-from dualsense_led.bluetooth import unregistered_dualsense
+from dualsense_ultimate_control.bluetooth import unregistered_dualsense
 
 
 def bluez(*devices):

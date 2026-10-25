@@ -1,7 +1,7 @@
 import unittest
 
-from dualsense_led.ds5 import triggers
-from dualsense_led.ds5.reports import TRIGGER_EFFECT_SIZE
+from dualsense_ultimate_control.ds5 import triggers
+from dualsense_ultimate_control.ds5.reports import TRIGGER_EFFECT_SIZE
 
 
 class TriggerEffectsTest(unittest.TestCase):

@@ -8,9 +8,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication, QMessageBox
 
-from dualsense_led.emulator.mapping import Profile, ProfileStore
-from dualsense_led.profiles_dialog import ProfilesDialog, parse_list, target_from_text
-from dualsense_led.service import LedService
+from dualsense_ultimate_control.emulator.mapping import Profile, ProfileStore
+from dualsense_ultimate_control.profiles_dialog import ProfilesDialog, parse_list, target_from_text
+from dualsense_ultimate_control.service import LedService
 
 
 class ProfilesDialogTests(unittest.TestCase):

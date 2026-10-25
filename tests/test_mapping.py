@@ -4,10 +4,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from dualsense_led.emulator import mapping
-from dualsense_led.emulator.config import Config
-from dualsense_led.emulator.mapping import InputState, Mapper, Profile, ProcessInfo, ProfileStore
-from dualsense_led.settings import AppSettings, save_settings
+from dualsense_ultimate_control.emulator import mapping
+from dualsense_ultimate_control.emulator.config import Config
+from dualsense_ultimate_control.emulator.mapping import InputState, Mapper, Profile, ProcessInfo, ProfileStore
+from dualsense_ultimate_control.settings import AppSettings, save_settings
 
 
 def state(pressed=(), **axes):

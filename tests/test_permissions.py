@@ -8,14 +8,14 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtWidgets import QApplication
 
-from dualsense_led.permissions import RULE_SOURCE, RuleInstaller, install_arguments, rule_installed
+from dualsense_ultimate_control.permissions import RULE_SOURCE, RuleInstaller, install_arguments, rule_installed
 
 
 class RuleInstalledTest(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
-        self.target = Path(self._tmp.name) / "70-dualsense-led.rules"
+        self.target = Path(self._tmp.name) / "70-dualsense-ultimate-control.rules"
 
     def test_missing_rule(self):
         self.assertFalse(rule_installed(self.target))
@@ -31,7 +31,7 @@ class RuleInstalledTest(unittest.TestCase):
     def test_install_arguments_pass_paths_as_arguments(self):
         args = install_arguments()
         self.assertEqual(args[:2], ["/bin/sh", "-c"])
-        self.assertEqual(args[-1], "/etc/udev/rules.d/70-dualsense-led.rules")
+        self.assertEqual(args[-1], "/etc/udev/rules.d/70-dualsense-ultimate-control.rules")
         self.assertEqual(Path(args[-2]), RULE_SOURCE)
 
 

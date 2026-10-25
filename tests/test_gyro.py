@@ -11,10 +11,10 @@ from PySide6.QtWidgets import QApplication
 from test_sysfs import make_led, write_uevent
 from test_testpanel import make_state
 
-from dualsense_led.ds5 import imu
-from dualsense_led.service import LedService
-from dualsense_led.settings import AppSettings, load_settings, save_settings
-from dualsense_led.testpanel.gyro import GyroPanel
+from dualsense_ultimate_control.ds5 import imu
+from dualsense_ultimate_control.service import LedService
+from dualsense_ultimate_control.settings import AppSettings, load_settings, save_settings
+from dualsense_ultimate_control.testpanel.gyro import GyroPanel
 
 # Relatório 0x05 lido de um DualSense real (USB).
 REAL_CALIBRATION = bytes.fromhex(

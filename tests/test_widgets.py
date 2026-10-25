@@ -9,9 +9,9 @@ from PySide6.QtWidgets import QApplication, QSlider, QTabBar, QToolButton
 
 from test_sysfs import make_led, write_uevent
 
-from dualsense_led.service import LedService
-from dualsense_led.colors import PRESETS
-from dualsense_led.widgets import ColorPalette, ColorSliders, ControllerTabs, PlayerRow, hsv_color, hue_color
+from dualsense_ultimate_control.service import LedService
+from dualsense_ultimate_control.colors import PRESETS
+from dualsense_ultimate_control.widgets import ColorPalette, ColorSliders, ControllerTabs, PlayerRow, hsv_color, hue_color
 
 
 class ColorSlidersTest(unittest.TestCase):

@@ -50,7 +50,7 @@ class AppSettings:
 
 def default_settings_path() -> Path:
     base = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
-    return base / "dualsense-led" / "settings.json"
+    return base / "dualsense-ultimate-control" / "settings.json"
 
 
 def load_settings(path: Path, strict: bool = False) -> AppSettings:

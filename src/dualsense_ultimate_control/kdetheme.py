@@ -15,7 +15,7 @@ from pathlib import Path
 
 PLUGIN_DIRS = ("/usr/lib/qt6/plugins", "/usr/lib64/qt6/plugins", "/usr/lib/x86_64-linux-gnu/qt6/plugins")
 LIB_DIRS = ("/usr/lib", "/usr/lib64", "/usr/lib/x86_64-linux-gnu")
-OPT_OUT = "DUALSENSE_LED_NO_KDE_THEME"
+OPT_OUT = "DUALSENSE_ULTIMATE_NO_KDE_THEME"
 _THEME_PLUGIN = "platformthemes/KDEPlasmaPlatformTheme6.so"
 
 
@@ -55,7 +55,7 @@ def enable(bundled_qt_version: str, cache_dir: Path | None = None) -> bool:
     source = system_plugin_dir()
     if source is None or system_qt_version() != bundled_qt_version:
         return False
-    cache = cache_dir or Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "dualsense-led"
+    cache = cache_dir or Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "dualsense-ultimate-control"
     target = cache / "qt-plugins"
     try:
         _expose_plugins(source, target)

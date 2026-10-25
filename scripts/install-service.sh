@@ -4,9 +4,16 @@
 set -eu
 
 PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
-UNIT=dualsense-led-emulator.service
+UNIT=dualsense-ultimate-control-emulator.service
 UNIT_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
 PYTHON="$PROJECT_DIR/.venv/bin/python"
+
+# Serviço do nome antigo (dualsense-led): sai do caminho para não subir dois daemons.
+OLD_UNIT=dualsense-led-emulator.service
+if [ -f "$UNIT_DIR/$OLD_UNIT" ]; then
+    systemctl --user disable --now "$OLD_UNIT" 2>/dev/null || true
+    rm -f "$UNIT_DIR/$OLD_UNIT"
+fi
 
 if [ "${1:-}" = "--remove" ]; then
     systemctl --user disable --now "$UNIT" 2>/dev/null || true
@@ -22,7 +29,7 @@ fi
 
 mkdir -p "$UNIT_DIR"
 sed -e "s|@PROJECT_DIR@|$PROJECT_DIR|g" -e "s|@PYTHON@|$PYTHON|g" \
-    "$PROJECT_DIR/src/dualsense_led/data/$UNIT" > "$UNIT_DIR/$UNIT"
+    "$PROJECT_DIR/src/dualsense_ultimate_control/data/$UNIT" > "$UNIT_DIR/$UNIT"
 systemctl --user daemon-reload
 systemctl --user enable --now "$UNIT"
 echo "Serviço instalado em $UNIT_DIR/$UNIT e ligado."

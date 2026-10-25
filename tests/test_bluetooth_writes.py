@@ -9,9 +9,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtWidgets import QApplication
 
-from dualsense_led import service as service_module
-from dualsense_led.service import BLUETOOTH_WRITE_INTERVAL_MS, LedService
-from dualsense_led.sysfs import Controller
+from dualsense_ultimate_control import service as service_module
+from dualsense_ultimate_control.service import BLUETOOTH_WRITE_INTERVAL_MS, LedService
+from dualsense_ultimate_control.sysfs import Controller
 from test_sysfs import make_led, write_uevent
 
 

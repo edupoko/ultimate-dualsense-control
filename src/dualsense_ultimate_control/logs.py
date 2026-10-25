@@ -1,6 +1,6 @@
 """Registro de funcionamento (logs): arquivo com rotação, erros do Python e do Qt, e travamentos.
 
-O arquivo fica em ~/.local/state/dualsense-led/ (ou em $XDG_STATE_HOME). Assim os logs existem
+O arquivo fica em ~/.local/state/dualsense-ultimate-control/ (ou em $XDG_STATE_HOME). Assim os logs existem
 também quando o app abre pelo menu ou no início do sistema, onde não há terminal para vê-los.
 """
 
@@ -14,8 +14,8 @@ import re
 import sys
 from pathlib import Path
 
-APP_DIR = "dualsense-led"
-LOG_NAME = "dualsense-led.log"
+APP_DIR = "dualsense-ultimate-control"
+LOG_NAME = "dualsense-ultimate-control.log"
 CRASH_NAME = "crash.log"
 MAX_BYTES = 512 * 1024
 BACKUPS = 3
@@ -26,7 +26,7 @@ DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 _ENTRY_START = re.compile(r"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d ")
 _PROBLEM = re.compile(r"^\S+ \S+ (WARNING|ERROR|CRITICAL) ")
 
-_HANDLER_TAG = "_dualsense_led_handler"
+_HANDLER_TAG = "_dualsense_ultimate_control_handler"
 _crash_file = None  # mantido aberto enquanto o processo vive
 
 
@@ -79,7 +79,7 @@ def _log_uncaught_exception(kind, value, traceback) -> None:
     if issubclass(kind, KeyboardInterrupt):
         sys.__excepthook__(kind, value, traceback)
         return
-    logging.getLogger("dualsense_led").critical("Erro não tratado", exc_info=(kind, value, traceback))
+    logging.getLogger("dualsense_ultimate_control").critical("Erro não tratado", exc_info=(kind, value, traceback))
 
 
 # Avisos do Qt que aparecem por causa de misturar o Qt do pip com os plugins do KDE do sistema
