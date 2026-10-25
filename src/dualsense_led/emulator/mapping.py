@@ -41,6 +41,11 @@ STICKS = ("left", "right")
 STICK_AXES = ("left_x", "left_y", "right_x", "right_y")
 TRIGGERS = ("l2", "r2")
 TRIGGER_MODES = ("analog", "digital", "off")
+# Gatilho adaptável do DualSense (ver ds5/triggers.py); o daemon os aplica pelo hidraw.
+TRIGGER_EFFECTS = ("off", "resistance", "weapon", "bow", "machine", "vibration")
+EFFECT_POSITION_RANGE = (0, 9)  # zona do curso em que o efeito começa
+EFFECT_STRENGTH_RANGE = (1, 8)
+DEFAULT_EFFECT_POSITION, DEFAULT_EFFECT_STRENGTH = 2, 5
 STICK_MAX, STICK_MIN = 32767, -32768
 TRIGGER_MAX = 255
 MAX_DEADZONE = 0.9
@@ -88,11 +93,19 @@ class Profile:
     gyro_button: str = "l2"  # entre BUTTON_SOURCES, para gyro == "button"
     gyro_speed: float = DEFAULT_GYRO_SPEED
     gyro_invert_y: bool = False
+    # Efeito do gatilho adaptável (resistência no próprio gatilho, não no botão virtual) por L2/R2.
+    trigger_effect: dict[str, str] = field(default_factory=lambda: {"l2": "off", "r2": "off"})
+    trigger_position: dict[str, int] = field(default_factory=lambda: dict.fromkeys(TRIGGERS, DEFAULT_EFFECT_POSITION))
+    trigger_strength: dict[str, int] = field(default_factory=lambda: dict.fromkeys(TRIGGERS, DEFAULT_EFFECT_STRENGTH))
 
     @property
     def uses_mouse(self) -> bool:
         """O perfil precisa dos relatórios do hidraw (touchpad como mouse ou giroscópio ligado)."""
         return self.touchpad == "mouse" or self.gyro != "off"
+
+    @property
+    def uses_trigger_effects(self) -> bool:
+        return any(effect != "off" for effect in self.trigger_effect.values())
 
     @classmethod
     def from_dict(cls, data) -> Profile:
@@ -132,6 +145,18 @@ class Profile:
                 profile.trigger_threshold = max(0.05, min(0.95, threshold))
         except (TypeError, ValueError):
             pass
+        effects = data.get("trigger_effect", {})
+        for trigger in TRIGGERS:
+            if isinstance(effects, dict) and effects.get(trigger) in TRIGGER_EFFECTS:
+                profile.trigger_effect[trigger] = effects[trigger]
+        for key, (low, high) in (("trigger_position", EFFECT_POSITION_RANGE), ("trigger_strength", EFFECT_STRENGTH_RANGE)):
+            values = data.get(key, {})
+            for trigger in TRIGGERS:
+                try:
+                    number = int(values[trigger])
+                except (KeyError, TypeError, ValueError):
+                    continue
+                getattr(profile, key)[trigger] = max(low, min(high, number))
         if data.get("touchpad") in TOUCHPAD_MODES:
             profile.touchpad = data["touchpad"]
         if data.get("gyro") in GYRO_MODES:
@@ -167,6 +192,9 @@ class Profile:
             "curve": dict(self.curve),
             "triggers": dict(self.triggers),
             "trigger_threshold": self.trigger_threshold,
+            "trigger_effect": dict(self.trigger_effect),
+            "trigger_position": dict(self.trigger_position),
+            "trigger_strength": dict(self.trigger_strength),
             "apps": list(self.apps),
             "steam_appids": list(self.steam_appids),
             "touchpad": self.touchpad,

@@ -84,6 +84,7 @@ O botão **Perfis de emulação…** (janela principal) edita os perfis, que fic
 - remapear cada botão para outro botão do Xbox, `lt`/`rt`, uma tecla (`key:KEY_SPACE`, por exemplo) ou nada;
 - trocar os analógicos, inverter eixos e ajustar zona morta e curva de sensibilidade de cada um;
 - tornar L2/R2 analógicos, digitais (com limiar) ou desligados;
+- ligar a **resistência do gatilho adaptável** em L2/R2 (resistência, arma, arco, máquina ou vibração, com posição e força): o daemon a aplica ao ligar a emulação e a remove ao trocar de perfil, desmarcar o controle ou desligar a emulação;
 - configurar o mouse virtual (abaixo).
 
 Há um **perfil padrão** (vale para todos) e perfis por aplicativo: cada perfil lista executáveis ou AppIDs da Steam, e ele passa a valer **enquanto esse processo estiver rodando** (no Wayland não há forma portátil de saber a janela em foco). Vários perfis casando: vale o primeiro em ordem alfabética. O daemon relê perfis e escolhas sozinho, sem reiniciar.

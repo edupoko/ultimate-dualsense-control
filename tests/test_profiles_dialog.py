@@ -60,6 +60,15 @@ class ProfilesDialogTests(unittest.TestCase):
         self.dialog._editor.load(profile)
         self.assertEqual(self.dialog._editor.profile(), profile)
 
+    def test_trigger_effect_fields_roundtrip_and_enable(self):
+        editor = self.dialog._editor
+        profile = Profile("E", trigger_effect={"l2": "off", "r2": "machine"}, trigger_position={"l2": 2, "r2": 6},
+                          trigger_strength={"l2": 5, "r2": 3})  # fmt: skip
+        editor.load(profile)
+        self.assertEqual(editor.profile(), profile)
+        self.assertTrue(editor._effect_position["r2"].isEnabled())
+        self.assertFalse(editor._effect_position["l2"].isEnabled())
+
     def test_mouse_fields_roundtrip_and_enable(self):
         editor = self.dialog._editor
         profile = Profile("M", touchpad="mouse", touchpad_speed=2.5, gyro="button", gyro_button="r1", gyro_speed=40, gyro_invert_y=True)

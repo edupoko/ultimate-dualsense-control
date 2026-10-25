@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from evdev import AbsInfo, InputDevice, InputEvent, UInput, ecodes, list_devices
 from evdev.uinput import UInputError
 
-from ..ds5 import imu
+from ..ds5 import imu, triggers
 from ..ds5.device import DualSenseDevice
 from .config import Config
 from .mapping import BUTTON_SOURCES, XBOX_TARGETS, InputState, Mapper, Output
@@ -163,6 +163,8 @@ class Bridge:
     _mouse: UInput | None = None
     _mouse_failed: bool = False
     _mouse_buttons: frozenset[str] = frozenset()
+    # Efeitos dos gatilhos adaptáveis já enviados ao controle (esquerdo, direito); None = nunca mexemos.
+    _triggers_sent: tuple[bytes, bytes] | None = None
 
     @classmethod
     def open(cls, path: str, mapper: Mapper | None = None, gyro_offset=None) -> Bridge:
@@ -186,6 +188,7 @@ class Bridge:
             bridge.hidraw_path, bridge.touchpad_path = sibling_nodes(path)
             bridge.sync()
             bridge.configure_mouse()
+            bridge.apply_triggers()
         except BaseException:
             bridge.close()  # solta o grab e some com o Xbox virtual já criado
             raise
@@ -210,6 +213,36 @@ class Bridge:
         self.mapper = mapper
         self._emit()
         self.configure_mouse()
+        self.apply_triggers()
+
+    # --- gatilhos adaptáveis
+
+    def apply_triggers(self) -> None:
+        """Manda ao controle os efeitos do perfil (resistência etc.); só escreve quando algo mudou.
+
+        O hid-playstation não mexe nos gatilhos nos próprios relatórios, então o efeito fica até
+        outro ser enviado: `close` o desliga.
+        """
+        profile = self.mapper.profile
+        wanted = tuple(
+            triggers.EFFECTS[f"trigger.{profile.trigger_effect[side]}"](
+                profile.trigger_position[side], profile.trigger_strength[side]
+            )
+            for side in ("l2", "r2")
+        )
+        self._send_triggers(wanted)
+
+    def _send_triggers(self, wanted: tuple[bytes, bytes]) -> None:
+        if wanted == (self._triggers_sent or (triggers.OFF, triggers.OFF)) or not self.hidraw_path:
+            return
+        try:
+            bluetooth = self.physical.info.bustype == ecodes.BUS_BLUETOOTH
+            with DualSenseDevice(self.hidraw_path, "Bluetooth" if bluetooth else "USB") as device:
+                device.send_output(left_trigger=wanted[0], right_trigger=wanted[1])
+        except OSError as error:
+            log.warning("Não consegui ajustar os gatilhos de %s: %s", self.name, error)
+            return
+        self._triggers_sent = wanted
 
     # --- giroscópio e touchpad como mouse
 
@@ -288,6 +321,11 @@ class Bridge:
             self.touchpad_path = None
             return
         self._touchpad = device
+
+    def _release_triggers(self) -> None:
+        """Gatilhos de volta ao normal ao devolver o controle (desmarcar, desconectar, encerrar)."""
+        if self._triggers_sent is not None:
+            self._send_triggers((triggers.OFF, triggers.OFF))
 
     def _release_touchpad(self) -> None:
         if self._touchpad is None:
@@ -470,6 +508,7 @@ class Bridge:
                 pass
         self._close_reports()
         self._release_touchpad()
+        self._release_triggers()
         self.physical.close()
         self.virtual.close()
         for extra in (self._keyboard, self._mouse):

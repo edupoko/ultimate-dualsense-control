@@ -374,6 +374,16 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "Off (use only as a button)",
         "es": "Apagado (usar solo como botón)",
     },
+    "profiles.trigger_effects": {
+        "pt": "Resistência do gatilho (gatilhos adaptáveis)",
+        "en": "Trigger resistance (adaptive triggers)",
+        "es": "Resistencia del gatillo (gatillos adaptativos)",
+    },
+    "profiles.trigger_effects_hint": {
+        "pt": "O efeito é aplicado ao ligar a emulação e removido ao trocar de perfil, desmarcar o controle ou desligar a emulação.",
+        "en": "The effect is applied when emulation turns on and removed when you switch profile, untick the controller or turn emulation off.",
+        "es": "El efecto se aplica al activar la emulación y se quita al cambiar de perfil, desmarcar el mando o desactivar la emulación.",
+    },
     "profiles.threshold": {
         "pt": "Ponto de acionamento",
         "en": "Activation point",

@@ -111,6 +111,18 @@ class ProfileDataTests(unittest.TestCase):
                           {"l2": "digital", "r2": "analog"}, 0.6, ["game.exe"], [123])  # fmt: skip
         self.assertEqual(Profile.from_dict(profile.to_dict()), profile)
 
+    def test_trigger_effect_roundtrip_and_clamping(self):
+        profile = Profile("T", trigger_effect={"l2": "off", "r2": "weapon"}, trigger_position={"l2": 2, "r2": 4},
+                          trigger_strength={"l2": 5, "r2": 7})  # fmt: skip
+        self.assertEqual(Profile.from_dict(profile.to_dict()), profile)
+        self.assertTrue(profile.uses_trigger_effects)
+        self.assertFalse(Profile().uses_trigger_effects)
+        bad = Profile.from_dict({"trigger_effect": {"l2": "weird", "r2": "bow"},
+                                 "trigger_position": {"l2": 99, "r2": "x"}, "trigger_strength": {"l2": 0}})  # fmt: skip
+        self.assertEqual(bad.trigger_effect, {"l2": "off", "r2": "bow"})
+        self.assertEqual(bad.trigger_position, {"l2": mapping.EFFECT_POSITION_RANGE[1], "r2": mapping.DEFAULT_EFFECT_POSITION})
+        self.assertEqual(bad.trigger_strength["l2"], mapping.EFFECT_STRENGTH_RANGE[0])
+
     def test_invalid_data_is_dropped_not_fatal(self):
         profile = Profile.from_dict({
             "name": " X ", "remap": {"south": "key:nope", "bogus": "a", "east": "a"}, "invert": ["left_x", "zzz"],

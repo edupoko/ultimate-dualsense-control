@@ -314,6 +314,78 @@ class EmulatorScanTests(unittest.TestCase):
         self.assertEqual(len(calls), 2)
 
 
+class TriggerEffectTests(unittest.TestCase):
+    """O efeito do perfil vai ao hidraw ao assumir/trocar e some ao devolver o controle."""
+
+    class Device:
+        sent = []
+
+        def __init__(self, path, connection):
+            self.connection = connection
+            self.fail = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def send_output(self, **fields):
+            type(self).sent.append((self.connection, fields))
+
+    def make(self, bustype=ecodes.BUS_USB):
+        self.Device.sent = []
+        physical = FakePhysical()
+        physical.info = type("Info", (), {"bustype": bustype})
+        physical.name, physical.uniq, physical.path = "DualSense", "aa", "/dev/input/event7"
+        bridge = core.Bridge(physical, FakeUInput(), Mapper(), hidraw_path="/dev/hidraw9")
+        patch = mock.patch.object(core, "DualSenseDevice", self.Device)
+        patch.start()
+        self.addCleanup(patch.stop)
+        return bridge
+
+    def profile(self, **effects):
+        return Profile("P", trigger_effect={"l2": "off", "r2": "off", **effects},
+                       trigger_position={"l2": 2, "r2": 4}, trigger_strength={"l2": 5, "r2": 6})  # fmt: skip
+
+    def test_profile_without_effect_never_writes(self):
+        bridge = self.make()
+        bridge.apply_triggers()
+        bridge._release_triggers()
+        self.assertEqual(self.Device.sent, [])
+
+    def test_effect_is_sent_once_and_released(self):
+        bridge = self.make()
+        bridge.mapper = Mapper(self.profile(r2="resistance"))
+        bridge.apply_triggers()
+        bridge.apply_triggers()  # nada mudou: não reenvia
+        self.assertEqual(len(self.Device.sent), 1)
+        connection, fields = self.Device.sent[0]
+        self.assertEqual(connection, "USB")
+        self.assertEqual(fields["right_trigger"], core.triggers.resistance(4, 6))
+        self.assertEqual(fields["left_trigger"], core.triggers.OFF)
+        bridge._release_triggers()
+        self.assertEqual(self.Device.sent[-1][1], {"left_trigger": core.triggers.OFF, "right_trigger": core.triggers.OFF})
+
+    def test_switching_to_a_profile_without_effect_turns_it_off(self):
+        bridge = self.make(ecodes.BUS_BLUETOOTH)
+        bridge.mapper = Mapper(self.profile(l2="weapon"))
+        bridge.apply_triggers()
+        bridge.mapper = Mapper(self.profile())
+        bridge.apply_triggers()
+        self.assertEqual([fields["left_trigger"] for _c, fields in self.Device.sent], [core.triggers.weapon(2, 5), core.triggers.OFF])
+        self.assertEqual(self.Device.sent[0][0], "Bluetooth")
+
+    def test_write_failure_is_retried_on_next_change(self):
+        bridge = self.make()
+        bridge.mapper = Mapper(self.profile(l2="bow"))
+        with mock.patch.object(self.Device, "send_output", side_effect=OSError(13, "denied")):
+            bridge.apply_triggers()
+        self.assertIsNone(bridge._triggers_sent)
+        bridge.apply_triggers()
+        self.assertEqual(len(self.Device.sent), 1)
+
+
 class BridgeOpenTests(unittest.TestCase):
     def test_failure_after_creating_the_virtual_releases_everything(self):
         class Physical(FakeNode):

@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QSpinBox,
     QTableWidget,
     QVBoxLayout,
     QWidget,
@@ -30,6 +31,8 @@ from .emulator.config import default_profiles_dir
 from .emulator.mapping import (
     BUTTON_SOURCES,
     CURVE_RANGE,
+    EFFECT_POSITION_RANGE,
+    EFFECT_STRENGTH_RANGE,
     GYRO_MODES,
     GYRO_SPEED_RANGE,
     KEY_PREFIX,
@@ -39,6 +42,7 @@ from .emulator.mapping import (
     STICKS,
     TOUCHPAD_MODES,
     TOUCHPAD_SPEED_RANGE,
+    TRIGGER_EFFECTS,
     TRIGGER_MODES,
     TRIGGERS,
     XBOX_TARGETS,
@@ -153,6 +157,7 @@ class ProfileEditor(QWidget):
 
         layout.addWidget(self._build_sticks())
         layout.addWidget(self._build_triggers())
+        layout.addWidget(self._build_trigger_effects())
         layout.addWidget(self._build_mouse())
         layout.addWidget(self._build_remap())
 
@@ -213,6 +218,44 @@ class ProfileEditor(QWidget):
         i18n.bind(threshold_label.setText, "profiles.threshold")
         form.addRow(threshold_label, self._threshold)
         return group
+
+    def _build_trigger_effects(self) -> QGroupBox:
+        group = QGroupBox()
+        i18n.bind(group.setTitle, "profiles.trigger_effects")
+        form = QFormLayout(group)
+        self._effects, self._effect_position, self._effect_strength = {}, {}, {}
+        for trigger in TRIGGERS:
+            combo = QComboBox()
+            for effect in TRIGGER_EFFECTS:
+                combo.addItem(tr(f"trigger.{effect}"), effect)
+            position, strength = QSpinBox(), QSpinBox()
+            position.setRange(*EFFECT_POSITION_RANGE)
+            strength.setRange(*EFFECT_STRENGTH_RANGE)
+            row = QHBoxLayout()
+            for key, widget in (("out.position", position), ("out.strength", strength)):
+                label = QLabel()
+                i18n.bind(label.setText, key)
+                row.addWidget(label)
+                row.addWidget(widget)
+            combo.currentIndexChanged.connect(self._touch)
+            combo.currentIndexChanged.connect(self._update_effect_fields)
+            position.valueChanged.connect(self._touch)
+            strength.valueChanged.connect(self._touch)
+            self._effects[trigger], self._effect_position[trigger], self._effect_strength[trigger] = combo, position, strength
+            form.addRow(SOURCE_LABELS[trigger], combo)
+            form.addRow("", row)
+        hint = QLabel()
+        hint.setWordWrap(True)
+        i18n.bind(hint.setText, "profiles.trigger_effects_hint")
+        form.addRow(hint)
+        self._update_effect_fields()
+        return group
+
+    def _update_effect_fields(self, *_args) -> None:
+        for trigger, combo in self._effects.items():
+            on = combo.currentData() != "off"
+            self._effect_position[trigger].setEnabled(on)
+            self._effect_strength[trigger].setEnabled(on)
 
     def _build_mouse(self) -> QGroupBox:
         group = QGroupBox()
@@ -291,6 +334,7 @@ class ProfileEditor(QWidget):
     def load(self, profile: Profile) -> None:
         widgets = [self._name, self._apps, self._appids, self._swap, self._threshold, *self._invert.values(),
                    *self._deadzone.values(), *self._curve.values(), *self._modes.values(), *self._combos.values(),
+                   *self._effects.values(), *self._effect_position.values(), *self._effect_strength.values(),
                    self._touchpad, self._touchpad_speed, self._gyro, self._gyro_button, self._gyro_speed, self._gyro_invert_y]  # fmt: skip
         for widget in widgets:
             widget.blockSignals(True)
@@ -306,6 +350,10 @@ class ProfileEditor(QWidget):
         for trigger, combo in self._modes.items():
             combo.setCurrentIndex(combo.findData(profile.triggers[trigger]))
         self._threshold.setValue(profile.trigger_threshold)
+        for trigger in TRIGGERS:
+            self._effects[trigger].setCurrentIndex(self._effects[trigger].findData(profile.trigger_effect[trigger]))
+            self._effect_position[trigger].setValue(profile.trigger_position[trigger])
+            self._effect_strength[trigger].setValue(profile.trigger_strength[trigger])
         for source, combo in self._combos.items():
             combo.set_target(profile.remap.get(source, ""))
         self._touchpad.setCurrentIndex(self._touchpad.findData(profile.touchpad))
@@ -317,6 +365,7 @@ class ProfileEditor(QWidget):
         for widget in widgets:
             widget.blockSignals(False)
         self._update_mouse_fields()
+        self._update_effect_fields()
 
     def invalid_targets(self) -> list[str]:
         return [target for combo in self._combos.values() if (target := combo.target()) and not valid_target(target)]
@@ -331,6 +380,9 @@ class ProfileEditor(QWidget):
             curve={stick: self._curve[stick].value() for stick in STICKS},
             triggers={trigger: combo.currentData() for trigger, combo in self._modes.items()},
             trigger_threshold=self._threshold.value(),
+            trigger_effect={trigger: combo.currentData() for trigger, combo in self._effects.items()},
+            trigger_position={trigger: spin.value() for trigger, spin in self._effect_position.items()},
+            trigger_strength={trigger: spin.value() for trigger, spin in self._effect_strength.items()},
             apps=parse_list(self._apps.text()),
             steam_appids=[int(part) for part in parse_list(self._appids.text()) if part.isdigit()],
             touchpad=self._touchpad.currentData(),
