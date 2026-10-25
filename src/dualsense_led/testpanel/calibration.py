@@ -23,6 +23,7 @@ from ..ds5 import calibration
 from ..ds5.reports import InputState
 from ..i18n import tr
 from ..service import LedService
+from .outputs import selected_controller
 from .widgets import StickView
 
 log = logging.getLogger(__name__)
@@ -261,13 +262,15 @@ class CalibrationPanel(QWidget):
         self._update_buttons()
 
     def _fail(self, action: str, before: dict, error: Exception) -> None:
+        """Registra a falha e reinicia o controle: parado no meio do begin/end ele ficaria no modo de calibração."""
         log.warning("Calibração (%s) falhou: %s", action, error)
         self._record(action, False, before, str(error))
+        self._discard()
         self._set_result("cal.failed", error=str(error))
         self._update_buttons()
 
     def _record(self, action: str, ok: bool, before: dict, detail: str) -> None:
-        controller = next((c for c in self._service.controllers if c.name == self._service.selected), None)
+        controller = selected_controller(self._service)
         entry = calibration.HistoryEntry(
             datetime.now().isoformat(timespec="seconds"), controller.uid if controller else "", action, ok, before,
             detail, calibration.read_imu_backup(self._device) if self._device is not None else "",

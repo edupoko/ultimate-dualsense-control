@@ -147,10 +147,16 @@ class MicMeter(QWidget):
             return
         self._source = QAudioSource(device, fmt, self)
         self._io = self._source.start()
+        if self._io is None:
+            self.stop()
+            self._label.setText(tr("out.mic_missing"))
+            return
         self._io.readyRead.connect(self._read)
         self._label.setText(tr("out.mic_device", name=device.description()))
 
     def stop(self) -> None:
+        if self._io is not None:
+            self._io.readyRead.disconnect(self._read)
         if self._source is not None:
             self._source.stop()
             self._source.deleteLater()
@@ -158,6 +164,8 @@ class MicMeter(QWidget):
         self._bar.setValue(0)
 
     def _read(self) -> None:
+        if self._io is None:  # leitura enfileirada antes de parar
+            return
         data = bytes(self._io.readAll())
         if data:
             self._bar.setValue(round(peak_level(data, self._float) * 100))

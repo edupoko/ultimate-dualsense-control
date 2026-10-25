@@ -53,8 +53,12 @@ def default_settings_path() -> Path:
     return base / "dualsense-led" / "settings.json"
 
 
-def load_settings(path: Path) -> AppSettings:
-    """Lê as configurações; arquivo ausente ou inválido volta para os padrões."""
+def load_settings(path: Path, strict: bool = False) -> AppSettings:
+    """Lê as configurações; arquivo ausente ou inválido volta para os padrões.
+
+    Com `strict`, só o arquivo ausente vira padrão: um ilegível levanta `SettingsError`, para o daemon
+    da emulação manter o que já sabia em vez de soltar todos os controles.
+    """
     try:
         data = json.loads(path.read_text())
         # Formato antigo: os LEDs ficavam na raiz, sem separar por controle.
@@ -76,17 +80,30 @@ def load_settings(path: Path) -> AppSettings:
             default, controllers, custom, bool(data.get("close_to_tray", True)), bool(data.get("auto_players", True)),
             str(data.get("language", "pt")), offsets, _uids(data.get("emulation")), str(data.get("default_profile", "")),
         )
-    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+    except FileNotFoundError:
+        return AppSettings()
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+        if strict:
+            raise SettingsError(str(error)) from error
         return AppSettings()
 
 
-def save_settings(path: Path, settings: AppSettings) -> None:
-    # Grava num arquivo ao lado e troca de uma vez: o daemon da emulação lê este arquivo a cada
-    # segundo e, pegando-o pela metade, acharia que nenhum controle está marcado e soltaria todos.
+class SettingsError(Exception):
+    """O settings.json existe, mas não deu para lê-lo."""
+
+
+def write_atomic(path: Path, text: str) -> None:
+    """Grava num arquivo ao lado e troca de uma vez: quem lê ao mesmo tempo (o daemon da emulação,
+    a cada segundo) nunca vê o arquivo pela metade, e uma falha no meio não destrói o anterior."""
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.tmp")
-    temporary.write_text(json.dumps(asdict(settings), indent=2))
+    temporary.write_text(text)
     os.replace(temporary, path)
+
+
+def save_settings(path: Path, settings: AppSettings) -> None:
+    # Pegando o arquivo pela metade, o daemon acharia que nenhum controle está marcado e soltaria todos.
+    write_atomic(path, json.dumps(asdict(settings), indent=2))
 
 
 def _light(data) -> LightSettings:

@@ -1,4 +1,6 @@
+import asyncio
 import unittest
+from unittest import mock
 
 from evdev import ecodes
 
@@ -244,6 +246,96 @@ class ForceFeedbackTests(unittest.TestCase):
         bridge.physical.upload_effect = refuse
         bridge.handle_force_feedback(self.event(ecodes.EV_UINPUT, ecodes.UI_FF_UPLOAD, 1))
         self.assertEqual(bridge.virtual.ended, [-22])
+
+
+class FakeConfig:
+    def __init__(self, uids=("aa",)):
+        self.uids = frozenset(uids)
+        self.gyro_offsets = {}
+
+    def refresh(self):
+        return False
+
+    def mapper(self):
+        return Mapper()
+
+
+class FakeNode:
+    uniq = "AA"
+
+    def __init__(self, *_args):
+        self.closed = False
+
+    def close(self):
+        self.closed = True
+
+
+class EmulatorScanTests(unittest.TestCase):
+    """Erros ao achar ou assumir um controle não derrubam o daemon nem o recusam para sempre."""
+
+    PATH = "/dev/input/event7"
+
+    def scan(self, emulator, **patches):
+        patches.setdefault("list_devices", lambda: [self.PATH])
+        patches.setdefault("InputDevice", FakeNode)
+        with mock.patch.multiple(core, **patches):
+            emulator.scan()
+
+    def test_node_vanishing_while_checked_is_skipped(self):
+        emulator = core.Emulator(config=FakeConfig())
+        self.scan(emulator, is_gamepad=mock.Mock(side_effect=OSError(19, "No such device")))
+        self.assertNotIn(self.PATH, emulator._refused)
+
+    def test_failed_open_is_retried_later(self):
+        emulator = core.Emulator(config=FakeConfig())
+        opener = mock.Mock(side_effect=OSError(16, "Device or resource busy"))
+        clock = mock.Mock(return_value=100.0)
+        with mock.patch.object(core.Bridge, "open", opener), mock.patch.object(core.time, "monotonic", clock):
+            self.scan(emulator, is_gamepad=lambda device: True)
+            self.scan(emulator, is_gamepad=lambda device: True)
+            self.assertEqual(opener.call_count, 1)  # espera antes de tentar de novo
+            clock.return_value = 100.0 + core.RETRY_AFTER_S + 1
+            self.scan(emulator, is_gamepad=lambda device: True)
+        self.assertEqual(opener.call_count, 2)
+
+    def test_run_survives_an_unexpected_scan_error(self):
+        emulator = core.Emulator(scan_interval=0, config=FakeConfig())
+        calls = []
+
+        def scan():
+            calls.append(1)
+            if len(calls) == 1:
+                raise RuntimeError("inesperado")
+            raise asyncio.CancelledError
+
+        emulator.scan = scan
+        with self.assertLogs(core.log, "ERROR"), self.assertRaises(asyncio.CancelledError):
+            asyncio.run(emulator.run())
+        self.assertEqual(len(calls), 2)
+
+
+class BridgeOpenTests(unittest.TestCase):
+    def test_failure_after_creating_the_virtual_releases_everything(self):
+        class Physical(FakeNode):
+            path, name = "/dev/input/event7", "DualSense"
+
+            def grab(self):
+                self.grabbed = True
+
+            def ungrab(self):
+                self.grabbed = False
+
+            def active_keys(self):
+                raise OSError(19, "No such device")  # sumiu logo depois do grab
+
+        physical, virtual = Physical(), FakeNode()
+        with mock.patch.multiple(
+            core, InputDevice=lambda path: physical, UInput=lambda *a, **k: virtual, sibling_nodes=lambda path: (None, None)
+        ):
+            with self.assertRaises(OSError):
+                core.Bridge.open(physical.path)
+        self.assertFalse(physical.grabbed)
+        self.assertTrue(physical.closed and virtual.closed)
 
 
 if __name__ == "__main__":

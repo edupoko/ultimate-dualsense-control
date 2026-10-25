@@ -2,6 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from dualsense_led.emulator import mapping
 from dualsense_led.emulator.config import Config
@@ -187,6 +188,29 @@ class ProfileStoreTests(unittest.TestCase):
         self.store.delete("Zeta")
         self.assertEqual([p.name for p in self.store.load_all()], ["alfa"])
 
+    def test_import_does_not_overwrite_without_asking(self):
+        self.store.save(Profile("Jogo 1", swap_sticks=True))
+        path = self.tmp / "outro.json"
+        self.store.export_file(Profile("jogo-1"), path)  # mesmo arquivo que "Jogo 1"
+        with self.assertRaises(mapping.ProfileExists) as caught:
+            self.store.import_file(path)
+        self.assertEqual(caught.exception.existing, "Jogo 1")
+        self.assertTrue(self.store.get("Jogo 1").swap_sticks)
+        self.store.import_file(path, overwrite=True)
+        self.assertEqual([p.name for p in self.store.load_all()], ["jogo-1"])
+
+    def test_failed_rename_keeps_the_old_profile(self):
+        self.store.save(Profile("velho"))
+        with mock.patch.object(mapping, "write_atomic", side_effect=OSError("disco cheio")):
+            with self.assertRaises(OSError):
+                self.store.save(Profile("novo"), previous_name="velho")
+        self.assertEqual([p.name for p in self.store.load_all()], ["velho"])
+
+    def test_save_leaves_no_temporary_file(self):
+        self.store.save(Profile("A"))
+        self.store.save(Profile("A", swap_sticks=True))
+        self.assertEqual([p.name for p in self.store.directory.iterdir()], ["a.json"])
+
     def test_rename_removes_old_file(self):
         self.store.save(Profile("velho"))
         self.store.save(Profile("novo"), previous_name="velho")
@@ -233,6 +257,16 @@ class ConfigTests(unittest.TestCase):
         self.config.refresh()
         self.assertEqual(self.config.uids, frozenset())
         self.assertEqual(self.config.profile, Profile())
+
+    def test_unreadable_settings_keep_what_was_known(self):
+        self.write(emulation=["aa:bb"])
+        self.config.refresh()
+        (self.tmp / "settings.json").write_text("{nope")
+        self.config.refresh()
+        self.assertEqual(self.config.uids, {"aa:bb"})  # não solta os controles por um arquivo ilegível
+        self.write(emulation=[])
+        self.assertTrue(self.config.refresh())
+        self.assertEqual(self.config.uids, frozenset())
 
     def test_reads_controllers_and_default_profile(self):
         self.config.store.save(Profile("Padrão meu", swap_sticks=True))

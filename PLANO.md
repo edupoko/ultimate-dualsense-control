@@ -77,7 +77,7 @@ Referência (dualshock-tools, WebHID/JS): `js/controllers/ds5-controller.js`, `j
   Corrigir o `README.md`: a seção da emulação ainda diz que touchpad e giroscópio "não são repassados". Documentar o mouse virtual (touchpad: mover/rolar/cliques; giro: modos `off/always/button/touch`, sentido confirmado no hardware: virar à direita → cursor à direita, apontar para cima → cursor para cima), os perfis (`~/.config/dualsense-led/profiles/`, perfil por aplicativo vale enquanto o processo roda), o filtro do repouso do analógico (127/128 → 0), o nome novo **DualSense Ultimate Control** (comando e pastas seguem `dualsense-led`) e o `scripts/install-service.sh` como opção manual. Conferir que nada no README cita o interruptor "Emulação ao iniciar o sistema" (foi retirado).
   Pronto quando: o README bate com o que o app faz hoje e os comandos dele funcionam copiados.
 
-- [ ] **E11 — Revisão final de código** · *Opus 5.5 · alto*
+- [x] **E11 — Revisão final de código** · *Opus 5.5 · alto*
   O projeto não é um repositório git, então o `/code-review` não roda. Fazer a revisão **por leitura** dos módulos novos (`ds5/`, `emulator/`, `testpanel/`, `emulation.py`, `profiles_dialog.py`), procurando: corridas de leitura/escrita do `settings.json`, vazamento de fds (hidraw/evdev/uinput), efeitos que não são desfeitos ao fechar (vibração, gatilhos, LEDs, grab), tratamento de desconexão no meio de uma operação, e o fluxo de calibração (NVS sempre travado no `finally`). Corrigir o que for claro e anotar o resto. (Se o usuário pedir, `git init` + commit inicial antes, para rodar o `/code-review`.)
   Pronto quando: achados corrigidos ou listados em "Notas das etapas" e a suíte verde.
 
@@ -178,3 +178,15 @@ Referência (dualshock-tools, WebHID/JS): `js/controllers/ds5-controller.js`, `j
 - **Depois dos testes**: o interruptor "Emulação ao iniciar o sistema" (`EmulationServiceRow`) foi retirado da janela a pedido do usuário, junto com `set_service_enabled`/`service_enabled`; o serviço de teste foi desinstalado. Ficam `scripts/install-service.sh` (uso manual, documentado no README) e `service_active`, que impede o app de ligar um 2º daemon se o serviço estiver ativo. A emulação do 14:3a foi desligada (só o USB bc:c7 segue marcado). 342 testes verdes.
 
 **E10 (concluída)**: README atualizado: nome novo no topo (comando/pastas seguem `dualsense-led`), emulação sem a frase de touchpad/giro "não repassados", seções novas de Perfis (pasta, campos, padrão + por aplicativo enquanto o processo roda) e Touchpad/giroscópio como mouse (modos, cliques, sentido confirmado), filtro 127/128 → 0, rumble, e `install-service.sh` marcado como opção manual. Nada cita o interruptor "Emulação ao iniciar o sistema". Conferido contra `mapping.py`/`mouse.py`; só texto, testes não rodados.
+
+**E11 (concluída)**: o usuário autorizou o git: `git init` + commit inicial, revisão dos módulos novos (10 achados), todos corrigidos. 354 testes verdes (12 novos).
+- Daemon: um nó que some durante a varredura (`is_gamepad` com ENODEV) derrubava o processo inteiro; agora é ignorado, e `Emulator.run` registra e segue se uma varredura levantar algo inesperado. Trocar de perfil com um controle saindo também não interrompe os outros.
+- `Bridge.open` solta o grab e fecha o Xbox virtual se `sync`/`configure_mouse` falharem depois de criá-lo.
+- Falha ao assumir um controle (uinput sem permissão no login, EBUSY) não o recusa mais até replugar: tenta de novo a cada `RETRY_AFTER_S` (5 s). Nós que não são gamepad seguem recusados até sumirem.
+- `settings.json` ilegível: `load_settings(strict=True)` levanta `SettingsError` (arquivo ausente continua sendo padrão) e o `Config` do daemon mantém os controles e perfis que já tinha, avisando uma vez por erro. Antes soltava todos.
+- Gravação atômica comum (`settings.write_atomic`) usada pelo `settings.json`, pelos perfis e pelo `calibration-history.json`. Renomear um perfil só apaga o arquivo antigo depois de gravar o novo.
+- Importar um perfil que ocupa o arquivo de outro (mesmo slug) levanta `ProfileExists`; o editor pergunta se substitui (`profiles.confirm_overwrite`, pt/en/es).
+- Calibração: qualquer falha no meio (begin, amostra, end do centro ou do alcance) agora reinicia o controle para tirá-lo do modo de calibração; o texto `cal.failed` diz que o controle foi reiniciado. **Não exercitado no hardware** (só com o controle falso).
+- `MicMeter`: `QAudioSource.start()` que devolve None e leitura enfileirada depois de parar não dão mais AttributeError.
+- `selected_controller()` reaproveitado em `window.py` e `testpanel/calibration.py`.
+- Não verificado: o diálogo de importação com a pergunta (só a loja tem teste) e o app aberto com o daemon novo — reiniciar o app para pegar as mudanças.

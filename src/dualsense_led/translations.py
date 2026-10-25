@@ -274,6 +274,11 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "Invalid AppID: {value}. Use numbers only.",
         "es": "AppID no válido: {value}. Usa solo números.",
     },
+    "profiles.confirm_overwrite": {
+        "pt": "Já existe o perfil “{name}”. Substituí-lo pelo importado?",
+        "en": "A profile named “{name}” already exists. Replace it with the imported one?",
+        "es": "Ya existe el perfil “{name}”. ¿Reemplazarlo por el importado?",
+    },
     "profiles.import_failed": {
         "pt": "Não foi possível importar: {error}",
         "en": "Could not import: {error}",
@@ -646,9 +651,9 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "Calibración guardada. El mando pide reinicio: usa \"Reiniciar mando\" o desconéctalo y vuelve a conectarlo.",
     },
     "cal.failed": {
-        "pt": "A calibração falhou ({error}). Nada foi gravado; reinicie o controle para descartar o resultado parcial.",
-        "en": "Calibration failed ({error}). Nothing was saved; restart the controller to discard the partial result.",
-        "es": "La calibración falló ({error}). No se guardó nada; reinicia el mando para descartar el resultado parcial.",
+        "pt": "A calibração falhou ({error}). Nada foi gravado; o controle foi reiniciado para descartar o resultado parcial.",
+        "en": "Calibration failed ({error}). Nothing was saved; the controller was restarted to discard the partial result.",
+        "es": "La calibración falló ({error}). No se guardó nada; el mando se reinició para descartar el resultado parcial.",
     },
     "cal.save_failed": {
         "pt": "A gravação falhou ({error}). A memória foi travada de novo; tente salvar outra vez ou reinicie o controle.",

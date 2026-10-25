@@ -243,6 +243,25 @@ class PanelTest(unittest.TestCase):
         self.assertTrue(self.panel._save_button.isEnabled())
         self.assertEqual(cal.load_history(self.history)[0]["action"], "range")
 
+    def test_failure_in_the_middle_reboots_to_leave_calibration_mode(self):
+        self._no_delay()
+        self.device.fail_on = cal.CENTER_SAMPLE
+        self.panel.set_device(self.device)
+        self.panel.run_center()
+        self.assertTrue(self.device.rebooted)
+        self.assertFalse(self.panel._save_button.isEnabled())
+
+    def test_failed_range_end_reboots(self):
+        self.panel.set_device(self.device)
+        self.panel.start_range()
+        for x, y in ((0, 0), (255, 255)):
+            self.panel.on_state(make_state(lx=x, ly=y, rx=x, ry=y))
+        self.device.fail_on = cal.RANGE_END
+        self.panel.finish_range()
+        self.assertTrue(self.device.rebooted)
+        self.assertFalse(self.panel._save_button.isEnabled())
+        self.assertFalse(cal.load_history(self.history)[0]["ok"])
+
     def test_reboot_discards_pending(self):
         self._no_delay()
         self.panel.set_device(self.device)

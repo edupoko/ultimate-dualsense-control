@@ -43,6 +43,7 @@ from .emulator.mapping import (
     TRIGGERS,
     XBOX_TARGETS,
     Profile,
+    ProfileExists,
     ProfileStore,
     slug,
     valid_target,
@@ -544,7 +545,13 @@ class ProfilesDialog(QDialog):
         if not path:
             return
         try:
-            profile = self._store.import_file(Path(path))
+            try:
+                profile = self._store.import_file(Path(path))
+            except ProfileExists as exists:
+                question = tr("profiles.confirm_overwrite", name=exists.existing)
+                if QMessageBox.question(self, tr("profiles.title"), question) != QMessageBox.StandardButton.Yes:
+                    return
+                profile = self._store.import_file(Path(path), overwrite=True)
         except (OSError, ValueError) as error:
             self._status.setText(tr("profiles.import_failed", error=str(error)))
             return

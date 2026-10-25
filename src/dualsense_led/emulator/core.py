@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import errno
 import logging
+import time
 from dataclasses import dataclass, field
 
 from evdev import AbsInfo, InputDevice, InputEvent, UInput, ecodes, list_devices
@@ -88,6 +89,9 @@ KEYBOARD_NAME = "DualSense Ultimate Control keyboard"
 KEYBOARD_KEYS = sorted({code for name, code in ecodes.ecodes.items() if name.startswith("KEY_") and code < 0x100})
 MOUSE_NAME = "DualSense Ultimate Control mouse"
 MOUSE_BUTTONS = {"left": ecodes.BTN_LEFT, "right": ecodes.BTN_RIGHT}
+# Depois de falhar ao assumir um controle (uinput ainda sem permissão no login, grab de outro programa),
+# quanto esperar para tentar de novo.
+RETRY_AFTER_S = 5.0
 
 
 def mouse_capabilities() -> dict:
@@ -178,9 +182,13 @@ class Bridge:
             physical.close()
             raise
         bridge = cls(physical, virtual, mapper or Mapper(), gyro_offset=gyro_offset)
-        bridge.hidraw_path, bridge.touchpad_path = sibling_nodes(path)
-        bridge.sync()
-        bridge.configure_mouse()
+        try:
+            bridge.hidraw_path, bridge.touchpad_path = sibling_nodes(path)
+            bridge.sync()
+            bridge.configure_mouse()
+        except BaseException:
+            bridge.close()  # solta o grab e some com o Xbox virtual já criado
+            raise
         return bridge
 
     @property
@@ -479,7 +487,8 @@ class Emulator:
         self._bridges: dict[str, Bridge] = {}
         self._uids: dict[str, str] = {}  # caminho -> MAC, dos controles em uso
         self._idle: dict[str, str] = {}  # caminho -> MAC, dos DualSense que o usuário não marcou
-        self._refused: set[str] = set()  # nós que falharam ao abrir; só tenta de novo se sumirem e voltarem
+        self._refused: set[str] = set()  # nós que não são gamepad de DualSense; só olha de novo se sumirem e voltarem
+        self._retry_at: dict[str, float] = {}  # caminho -> quando tentar assumir de novo, depois de uma falha
 
     def scan(self) -> None:
         """Abre os controles marcados; os que sumiram já se removem sozinhos (fim da tarefa)."""
@@ -488,7 +497,10 @@ class Emulator:
             mapper = self.config.mapper()
             for path, bridge in self._bridges.items():
                 bridge.gyro_offset = self.config.gyro_offsets.get(self._uids[path])
-                bridge.set_mapper(mapper)
+                try:
+                    bridge.set_mapper(mapper)
+                except OSError as error:  # controle saindo: a tarefa dele encerra sozinha
+                    log.warning("Não consegui trocar o perfil de %s: %s", bridge.name, error)
         for path, uid in list(self._uids.items()):
             if uid not in self.config.uids:  # desmarcado: devolve o controle ao sistema
                 log.info("Emulação desligada para %s", uid)
@@ -496,9 +508,14 @@ class Emulator:
                 self._tasks[path].cancel()
         paths = set(list_devices())
         self._refused &= paths
+        for path in set(self._retry_at) - paths:
+            del self._retry_at[path]
         for path in set(self._idle) - paths:
             del self._idle[path]
+        now = time.monotonic()
         for path in paths - self._tasks.keys() - self._refused:
+            if self._retry_at.get(path, 0.0) > now:
+                continue
             uid = self._idle.get(path)
             if uid is None:
                 try:
@@ -508,6 +525,8 @@ class Emulator:
                 try:
                     accepted = is_gamepad(device)
                     uid = (device.uniq or "").lower()
+                except OSError:
+                    continue  # o nó sumiu entre abrir e consultar
                 finally:
                     device.close()
                 if not accepted:
@@ -519,9 +538,10 @@ class Emulator:
             try:
                 bridge = Bridge.open(path, self.config.mapper(), self.config.gyro_offsets.get(uid))
             except (OSError, UInputError) as error:
-                log.warning("Não consegui assumir %s: %s", path, error)
-                self._refused.add(path)
+                log.warning("Não consegui assumir %s (tento de novo em %.0f s): %s", path, RETRY_AFTER_S, error)
+                self._retry_at[path] = now + RETRY_AFTER_S
                 continue
+            self._retry_at.pop(path, None)
             log.info("Emulando Xbox 360 para %s", bridge.name)
             self._idle.pop(path, None)
             self._uids[path] = uid
@@ -545,7 +565,11 @@ class Emulator:
     async def run(self) -> None:
         try:
             while True:
-                self.scan()
+                try:
+                    self.scan()
+                except Exception:
+                    # Um erro inesperado numa varredura não pode derrubar os controles que já funcionam.
+                    log.exception("Erro na varredura dos controles")
                 await asyncio.sleep(self.scan_interval)
         finally:
             await self.shutdown()

@@ -12,7 +12,7 @@ from ..i18n import tr
 from ..service import LedService
 from .calibration import CalibrationPanel
 from .gyro import GyroPanel
-from .outputs import OutputPanel
+from .outputs import OutputPanel, selected_controller
 from .quicktest import QuickTestDialog
 from .widgets import ControllerView, ImuPlot, StickView, TouchpadView
 
@@ -127,7 +127,7 @@ class TestWindow(QWidget):
         """Abre o hidraw do controle selecionado (de novo, se a seleção ou a conexão mudou)."""
         self._close_device()
         self._error = ""
-        controller = next((c for c in self._service.controllers if c.name == self._service.selected), None)
+        controller = selected_controller(self._service)
         if controller is None or not self.isVisible():
             self._error = "test.no_controller"
         elif not controller.hidraw:

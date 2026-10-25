@@ -13,6 +13,8 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from ..settings import write_atomic
+
 # Botões do DualSense pela posição física (o driver os chama de "cardinais", ver core.BUTTON_MAP).
 BUTTON_SOURCES = (
     "south", "east", "west", "north", "l1", "r1", "l2", "r2",
@@ -328,6 +330,15 @@ class Mapper:
         )
 
 
+class ProfileExists(ValueError):
+    """Já existe um perfil gravado no mesmo arquivo (mesmo nome, ignorando maiúsculas e símbolos)."""
+
+    def __init__(self, name: str, existing: str):
+        super().__init__(f"já existe o perfil {existing!r}")
+        self.name = name
+        self.existing = existing
+
+
 def slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "perfil"
 
@@ -368,20 +379,31 @@ class ProfileStore:
         """Grava o perfil; com `previous_name` diferente do atual, renomeia (remove o arquivo antigo)."""
         if not profile.name:
             raise ValueError("o perfil precisa de um nome")
-        self.directory.mkdir(parents=True, exist_ok=True)
-        if previous_name and previous_name != profile.name:
+        path = self._path_for(profile.name)
+        # Atômico: o daemon relê a pasta a cada segundo. O antigo só some depois que o novo está gravado.
+        write_atomic(path, json.dumps(profile.to_dict(), indent=2, ensure_ascii=False))
+        if previous_name and self._path_for(previous_name) != path:
             self.delete(previous_name)
-        self._path_for(profile.name).write_text(json.dumps(profile.to_dict(), indent=2, ensure_ascii=False))
 
     def delete(self, name: str) -> None:
         self._path_for(name).unlink(missing_ok=True)
 
-    def import_file(self, path: Path) -> Profile:
+    def import_file(self, path: Path, overwrite: bool = False) -> Profile:
+        """Copia um perfil para a pasta; sem `overwrite`, recusa (`ProfileExists`) se ocupar o arquivo de outro."""
         profile = Profile.from_dict(json.loads(path.read_text()))
         if not profile.name:
             profile.name = path.stem
+        existing = self._read(self._path_for(profile.name))
+        if existing is not None and not overwrite:
+            raise ProfileExists(profile.name, existing.name or profile.name)
         self.save(profile)
         return profile
+
+    def _read(self, path: Path) -> Profile | None:
+        try:
+            return Profile.from_dict(json.loads(path.read_text()))
+        except (OSError, ValueError):
+            return None
 
     def export_file(self, profile: Profile, path: Path) -> None:
         path.write_text(json.dumps(profile.to_dict(), indent=2, ensure_ascii=False))

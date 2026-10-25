@@ -35,5 +35,21 @@ class SaveSettingsTests(unittest.TestCase):
         self.assertEqual(load_settings(self.path).emulation, ["aa", "bb"])
 
 
+class StrictLoadTests(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.path = Path(tmp.name) / "settings.json"
+
+    def test_missing_file_is_defaults_even_when_strict(self):
+        self.assertEqual(load_settings(self.path, strict=True), AppSettings())
+
+    def test_unreadable_file_raises_only_when_strict(self):
+        self.path.write_text("{nope")
+        self.assertEqual(load_settings(self.path), AppSettings())
+        with self.assertRaises(settings.SettingsError):
+            load_settings(self.path, strict=True)
+
+
 if __name__ == "__main__":
     unittest.main()

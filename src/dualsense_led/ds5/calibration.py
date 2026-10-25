@@ -13,6 +13,8 @@ import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from ..settings import write_atomic
+
 NVS_REQUEST, NVS_RESPONSE = 0x80, 0x81
 CAL_REQUEST, CAL_RESPONSE = 0x82, 0x83
 FEATURE_SIZE = 64
@@ -218,5 +220,4 @@ def load_history(path: Path) -> list[dict]:
 
 def append_history(path: Path, entry: HistoryEntry) -> None:
     entries = (load_history(path) + [asdict(entry)])[-MAX_HISTORY:]
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(entries, indent=2))
+    write_atomic(path, json.dumps(entries, indent=2))  # truncado, o histórico inteiro viraria lista vazia
