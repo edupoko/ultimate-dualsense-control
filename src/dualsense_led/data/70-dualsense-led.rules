@@ -1,0 +1,6 @@
+# Libera, para usuários comuns, os LEDs do DualSense e do DualSense Edge (USB e Bluetooth).
+# Afeta só os arquivos de brilho/cor dos LEDs e o nó hidraw do próprio controle.
+ACTION=="add", SUBSYSTEM=="leds", KERNELS=="*054C:0CE6*|*054C:0DF2*", KERNEL=="input*:rgb:indicator", RUN+="/bin/chmod 0666 /sys%p/brightness /sys%p/multi_intensity"
+ACTION=="add", SUBSYSTEM=="leds", KERNELS=="*054C:0CE6*|*054C:0DF2*", KERNEL=="input*:white:player-*", RUN+="/bin/chmod 0666 /sys%p/brightness"
+# O LED do botão de microfone não existe no sysfs: o app o controla escrevendo no hidraw do controle.
+ACTION=="add", SUBSYSTEM=="hidraw", KERNELS=="*054C:0CE6*|*054C:0DF2*", TAG+="uaccess"

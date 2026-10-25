@@ -1,0 +1,14 @@
+[Unit]
+Description=DualSense Ultimate Control - emulação de Xbox 360
+Documentation=file://@PROJECT_DIR@/README.md
+
+[Service]
+Type=simple
+ExecStart=@PYTHON@ -m dualsense_led.emulator
+# SIGTERM: o emulador solta o grab dos controles antes de sair.
+KillSignal=SIGTERM
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
