@@ -9,7 +9,7 @@ from PySide6.QtCore import QObject, QTimer, Signal
 
 from .colors import MAX_CUSTOM_COLORS, PRESETS
 from .settings import LightSettings, load_settings, save_settings
-from . import bluetooth, i18n
+from . import bluetooth, i18n, theme
 from .bluetooth import unregistered_dualsense
 from .players import PLAYER_COUNT, pattern_for
 from .steam import hidraw_held_by_steam
@@ -240,6 +240,18 @@ class LedService(QObject):
         self._store.language = code
         self._save()
         i18n.set_language(code)
+
+    @property
+    def theme(self) -> str:
+        return self._store.theme
+
+    def set_theme(self, name: str) -> None:
+        """Guarda o tema visual; ele é aplicado na próxima abertura do app (o do KDE exige isso)."""
+        if name not in ("auto", *theme.THEMES):
+            return
+        log.info("Tema alterado para %s", name)
+        self._store.theme = name
+        self._save()
 
     @property
     def needs_permission(self) -> bool:

@@ -25,7 +25,7 @@ from .emulation import EmulationProcess
 from .i18n import tr
 from .migrate import migrate_legacy
 from .service import LedService
-from .settings import default_settings_path
+from .settings import default_settings_path, load_settings
 from .tray import TrayIcon
 from .window import MainWindow, app_icon
 
@@ -76,13 +76,14 @@ def main(argv: list[str] | None = None) -> int:
         os.environ["QT_QPA_PLATFORM"] = "xcb"
 
     # Aparência do KDE (Breeze, cores e fontes do sistema) em vez do estilo genérico do Qt.
-    kde_active = kdetheme.enable(qVersion())
+    theme_name = theme.detect(preference=load_settings(default_settings_path()).theme)
+    kde_active = theme_name == "kde" and kdetheme.enable(qVersion())
     if kde_active:
         logging.info("Usando o tema do KDE.")
 
     app = QApplication([sys.argv[0], *qt_args])
-    if theme.apply(app, kde_active):
-        logging.info("Usando o tema próprio (Fusion).")
+    if theme.apply(app, kde_active, theme_name):
+        logging.info("Usando o tema %s.", "do GNOME (visual Adwaita sobre o Fusion)" if theme.style() == "gnome" else "próprio (Fusion)")
     logging.info("Iniciando %s %s (Qt %s, plataforma %s)", "DualSense Ultimate Control", __version__, qVersion(), app.platformName())
     app.setApplicationName("DualSense Ultimate Control")
     app.setDesktopFileName("dualsense-ultimate-control")

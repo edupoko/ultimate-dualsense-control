@@ -41,6 +41,7 @@ from .widgets import (
     ControllerTabs,
     DisconnectRow,
     LanguageRow,
+    ThemeRow,
     LogsRow,
     MuteLedRow,
     PlayerRow,
@@ -328,6 +329,7 @@ class MainWindow(QWidget):
         layout = QVBoxLayout(page)
         general, general_layout = section("window.general")
         general_layout.addWidget(LanguageRow(self._service))
+        general_layout.addWidget(ThemeRow(self._service))
         general_layout.addWidget(AutostartRow())
         general_layout.addWidget(AutoPlayersRow(self._service))
         close_to_tray = CloseToTrayRow(self._service)

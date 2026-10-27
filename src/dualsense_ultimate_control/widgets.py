@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QGridLayout,
     QHBoxLayout,
+    QVBoxLayout,
     QLabel,
     QSizePolicy,
     QSlider,
@@ -634,6 +635,46 @@ class LanguageRow(QWidget):
 
     def _on_changed(self, index: int) -> None:
         self._service.set_language(self._combo.itemData(index))
+
+
+class ThemeRow(QWidget):
+    """Menu do tema visual (automático, KDE, GNOME, próprio); a escolha fica salva e vale ao reabrir o app."""
+
+    CHOICES = ("auto", "kde", "gnome", "own")
+
+    def __init__(self, service: LedService, parent: QWidget | None = None):
+        super().__init__(parent)
+        self._service = service
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(2)
+        line = QHBoxLayout()
+        line.addWidget(_bound_label("window.theme"), 1)
+        self._combo = QComboBox()
+        for code in self.CHOICES:
+            self._combo.addItem("", code)
+        i18n.bind(self._combo.setAccessibleName, "window.theme")
+        self._combo.currentIndexChanged.connect(self._on_changed)
+        line.addWidget(self._combo)
+        outer.addLayout(line)
+        self._hint = _bound_label("window.theme_hint")
+        self._hint.setEnabled(False)  # cinza de apoio
+        self._hint.setWordWrap(True)
+        self._hint.hide()
+        outer.addWidget(self._hint)
+        i18n.hub.changed.connect(self._retranslate)
+        self._retranslate()
+
+    def _retranslate(self) -> None:
+        self._combo.blockSignals(True)
+        for index, code in enumerate(self.CHOICES):
+            self._combo.setItemText(index, i18n.tr(f"theme.{code}"))
+        self._combo.setCurrentIndex(self._combo.findData(self._service.theme))
+        self._combo.blockSignals(False)
+
+    def _on_changed(self, index: int) -> None:
+        self._service.set_theme(self._combo.itemData(index))
+        self._hint.show()
 
 
 class DisconnectRow(QWidget):

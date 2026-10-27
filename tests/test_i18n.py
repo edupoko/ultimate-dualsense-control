@@ -14,7 +14,7 @@ from dualsense_ultimate_control.service import LedService
 from dualsense_ultimate_control.settings import load_settings
 from dualsense_ultimate_control.translations import STRINGS
 from dualsense_ultimate_control.tray import TrayIcon
-from dualsense_ultimate_control.widgets import LanguageRow
+from dualsense_ultimate_control.widgets import LanguageRow, ThemeRow
 from dualsense_ultimate_control.window import MainWindow
 
 SOURCE = Path(__file__).resolve().parent.parent / "src" / "dualsense_ultimate_control"
@@ -129,6 +129,24 @@ class LanguageSwitchTest(unittest.TestCase):
         combo = row.findChild(QComboBox)
         self.service.set_language("en")
         self.assertEqual(combo.currentData(), "en")
+
+    def test_theme_selector_saves_the_choice_and_shows_the_restart_hint(self):
+        row = ThemeRow(self.service)
+        combo = row.findChild(QComboBox)
+        self.assertEqual([combo.itemData(i) for i in range(combo.count())], ["auto", "kde", "gnome", "own"])
+        self.assertEqual(combo.currentData(), "auto")
+        combo.setCurrentIndex(combo.findData("gnome"))
+        self.assertEqual(self.service.theme, "gnome")
+        self.assertEqual(load_settings(self.settings_path).theme, "gnome")
+        self.assertFalse(row._hint.isHidden())
+        self.service.set_theme("invalido")
+        self.assertEqual(self.service.theme, "gnome")
+
+    def test_theme_selector_texts_follow_the_language(self):
+        row = ThemeRow(self.service)
+        combo = row.findChild(QComboBox)
+        self.service.set_language("en")
+        self.assertEqual(combo.itemText(0), "Automatic (from the desktop)")
 
     def test_choice_is_saved_and_restored_on_start(self):
         self.service.set_language("es")

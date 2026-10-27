@@ -46,6 +46,8 @@ class AppSettings:
     emulation: list[str] = field(default_factory=list)
     # Perfil de remapeamento usado quando nenhum perfil de aplicativo está ativo ("" = sem alterações).
     default_profile: str = ""
+    # Tema visual: "auto" (pelo desktop), "kde", "gnome" ou "own". Vale na próxima abertura do app.
+    theme: str = "auto"
 
 
 def default_settings_path() -> Path:
@@ -79,6 +81,7 @@ def load_settings(path: Path, strict: bool = False) -> AppSettings:
         return AppSettings(
             default, controllers, custom, bool(data.get("close_to_tray", True)), bool(data.get("auto_players", True)),
             str(data.get("language", "pt")), offsets, _uids(data.get("emulation")), str(data.get("default_profile", "")),
+            str(data.get("theme", "auto")),
         )
     except FileNotFoundError:
         return AppSettings()

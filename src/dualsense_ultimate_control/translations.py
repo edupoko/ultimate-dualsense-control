@@ -40,6 +40,16 @@ STRINGS: dict[str, dict[str, str]] = {
     "window.leds": {"pt": "LEDs do controle", "en": "Controller LEDs", "es": "LEDs del mando"},
     "window.how_to_fix": {"pt": "Como resolver…", "en": "How to fix…", "es": "Cómo resolverlo…"},
     "window.language": {"pt": "Idioma", "en": "Language", "es": "Idioma"},
+    "window.theme": {"pt": "Tema", "en": "Theme", "es": "Tema"},
+    "window.theme_hint": {
+        "pt": "O novo tema vale na próxima vez que o app abrir.",
+        "en": "The new theme applies the next time the app opens.",
+        "es": "El nuevo tema se aplica la próxima vez que se abra la app.",
+    },
+    "theme.auto": {"pt": "Automático (pelo desktop)", "en": "Automatic (from the desktop)", "es": "Automático (según el escritorio)"},
+    "theme.kde": {"pt": "KDE (Breeze)", "en": "KDE (Breeze)", "es": "KDE (Breeze)"},
+    "theme.gnome": {"pt": "GNOME (Adwaita)", "en": "GNOME (Adwaita)", "es": "GNOME (Adwaita)"},
+    "theme.own": {"pt": "Próprio (Fusion)", "en": "Own (Fusion)", "es": "Propio (Fusion)"},
     "window.steam_notice": {
         "pt": "A Steam está controlando os LEDs deste controle e pode desfazer suas mudanças.",
         "en": "Steam is controlling this controller's LEDs and may undo your changes.",
