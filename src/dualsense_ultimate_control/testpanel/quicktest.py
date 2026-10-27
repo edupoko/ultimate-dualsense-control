@@ -5,10 +5,8 @@ from __future__ import annotations
 import logging
 import time
 
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
-    QDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -132,8 +130,13 @@ class ItemRow(QFrame):
         )
 
 
-class QuickTestDialog(QDialog):
-    """Roda a sequência sobre o controle aberto pela janela de teste, que repassa o dispositivo e o estado."""
+class QuickTestDialog(QWidget):
+    """Aba que roda a sequência sobre o controle aberto pelo painel de teste, que repassa o dispositivo e o estado.
+
+    Só funciona enquanto está visível: sair da aba (ou da página) para a sequência e desliga os efeitos."""
+
+    # "Voltar" ou ○ com a sequência parada: o painel volta para a aba de entradas.
+    back_requested = Signal()
 
     def __init__(self, service: LedService, parent: QWidget | None = None):
         super().__init__(parent)
@@ -150,8 +153,6 @@ class QuickTestDialog(QDialog):
         self._script_loop: list = []
         self._script_timer = QTimer(self)
         self._script_timer.timeout.connect(self._script_step)
-        i18n.bind(self.setWindowTitle, "quick.title")
-        self.setMinimumSize(560, 600)
 
         root = QVBoxLayout(self)
         self._banner = QLabel()
@@ -220,8 +221,8 @@ class QuickTestDialog(QDialog):
         self._start_button = QPushButton()  # o texto ("Começar"/"Recomeçar") vem de _refresh
         self._start_button.clicked.connect(lambda: self._go(self._sequence.start))
         close = QPushButton()
-        i18n.bind(close.setText, "quick.close")
-        close.clicked.connect(self.close)
+        i18n.bind(close.setText, "nav.back")
+        close.clicked.connect(self.back_requested)
         bottom.addWidget(self._start_button)
         bottom.addWidget(close)
         root.addLayout(bottom)
@@ -289,7 +290,7 @@ class QuickTestDialog(QDialog):
             self._go(self._sequence.previous)
         elif "circle" in pressed:
             if current is None:
-                self.close()
+                self.back_requested.emit()
             else:
                 self._go(self._sequence.skip)
 
@@ -450,10 +451,6 @@ class QuickTestDialog(QDialog):
     def showEvent(self, event) -> None:
         super().showEvent(event)
         self._refresh()
-
-    def closeEvent(self, event: QCloseEvent) -> None:
-        self._stop()
-        super().closeEvent(event)
 
     def hideEvent(self, event) -> None:
         self._stop()

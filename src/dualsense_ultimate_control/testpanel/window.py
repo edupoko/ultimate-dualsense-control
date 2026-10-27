@@ -1,9 +1,9 @@
-"""Janela "Testar controle": mostra ao vivo as entradas do DualSense selecionado."""
+"""Página "Testar controle": mostra ao vivo as entradas do DualSense selecionado."""
 
 from __future__ import annotations
 
 from PySide6.QtCore import QTimer
-from PySide6.QtGui import QCloseEvent, QHideEvent, QShowEvent
+from PySide6.QtGui import QHideEvent, QShowEvent
 from PySide6.QtWidgets import QGroupBox, QTabWidget, QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout, QWidget
 
 from .. import i18n
@@ -20,7 +20,7 @@ POLL_MS = 16
 
 
 class TestWindow(QWidget):
-    """Lê o hidraw do controle escolhido só enquanto a janela está visível."""
+    """Lê o hidraw do controle escolhido só enquanto a página está visível."""
 
     def __init__(self, service: LedService, parent: QWidget | None = None):
         super().__init__(parent)
@@ -28,23 +28,14 @@ class TestWindow(QWidget):
         self._device = None
         self._error = ""
         self._state: InputState | None = None
-        i18n.bind(self.setWindowTitle, "test.title")
-        self.setMinimumWidth(560)
 
         root = QVBoxLayout(self)
         self._info = QLabel()
         font = self._info.font()
         font.setBold(True)
         self._info.setFont(font)
-        top = QHBoxLayout()
-        top.addWidget(self._info, 1)
-        self._quick = QuickTestDialog(service, self)
-        quick = QPushButton()
-        i18n.bind(quick.setText, "quick.open")
-        quick.clicked.connect(self.open_quick_test)
-        top.addWidget(quick)
-        root.addLayout(top)
-        tabs = QTabWidget()
+        root.addWidget(self._info)
+        self._tabs = tabs = QTabWidget()
         root.addWidget(tabs)
         inputs = QWidget()
         layout = QVBoxLayout(inputs)
@@ -55,10 +46,14 @@ class TestWindow(QWidget):
         tabs.addTab(self._calibration, "")
         self._gyro_panel = GyroPanel(service)
         tabs.addTab(self._gyro_panel, "")
+        self._quick = QuickTestDialog(service)
+        self._quick.back_requested.connect(lambda: tabs.setCurrentIndex(0))
+        tabs.addTab(self._quick, "")
         i18n.bind(lambda text: tabs.setTabText(0, text), "test.tab_inputs")
         i18n.bind(lambda text: tabs.setTabText(1, text), "test.tab_outputs")
         i18n.bind(lambda text: tabs.setTabText(2, text), "cal.tab")
         i18n.bind(lambda text: tabs.setTabText(3, text), "gyro.tab")
+        i18n.bind(lambda text: tabs.setTabText(4, text), "quick.title")
 
         self._view = ControllerView()
         layout.addWidget(self._view, 2)
@@ -99,19 +94,12 @@ class TestWindow(QWidget):
         self._reopen()
 
     def hideEvent(self, event: QHideEvent) -> None:
+        # Também chega quando a janela principal troca de página ou vai para a bandeja.
         super().hideEvent(event)
-        self._quick.hide()
         self._close_device()
-
-    def closeEvent(self, event: QCloseEvent) -> None:
-        self._close_device()
-        super().closeEvent(event)
 
     def open_quick_test(self) -> None:
-        self._quick.set_device(self._device)
-        self._quick.show()
-        self._quick.raise_()
-        self._quick.activateWindow()
+        self._tabs.setCurrentWidget(self._quick)
 
     def _close_device(self) -> None:
         self._timer.stop()

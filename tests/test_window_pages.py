@@ -78,6 +78,41 @@ class WindowPagesTest(unittest.TestCase):
         self.assertFalse(window.page("profiles").isWindow())
         self.assertTrue(window.page("profiles").can_leave())  # nada editado
 
+    def test_quick_test_is_a_tab_of_the_test_page(self):
+        window = self._window()
+        before = set(self._visible_windows())
+        window.show_test()
+        test = window.page("test")
+        test.open_quick_test()
+        self.assertIs(test._tabs.currentWidget(), test._quick)
+        self.assertFalse(test._quick.isWindow())
+        self.assertTrue(test._quick.isVisible())
+        self.assertEqual(set(self._visible_windows()), before)  # nenhuma janela nova
+        test._quick.back_requested.emit()
+        self.assertEqual(test._tabs.currentIndex(), 0)
+        self.assertFalse(test._quick.isVisible())
+
+    def test_test_page_holds_the_controller_only_while_shown(self):
+        device = mock.MagicMock(connection="USB")
+        device.read_state.return_value = None
+        controller = mock.Mock(hidraw="/dev/hidraw9", open_device=mock.Mock(return_value=device))
+        with mock.patch("dualsense_ultimate_control.testpanel.window.selected_controller", return_value=controller), \
+                mock.patch("dualsense_ultimate_control.testpanel.outputs.selected_controller", return_value=controller):
+            window = self._window()
+            window.show_test()
+            test = window.page("test")
+            self.assertIs(test._device, device)
+            test.open_quick_test()
+            self.assertIs(test._quick._device, device)
+            window.set_page("controls")
+            self.assertIsNone(test._device)  # trocar de página solta o hidraw
+            self.assertIsNone(test._quick._device)
+            device.close.assert_called_once()
+            window.show_test()
+            self.assertIs(test._device, device)  # e voltar abre de novo
+            window.hide()  # janela para a bandeja
+            self.assertIsNone(test._device)
+
     def test_pending_profile_edit_can_keep_the_page(self):
         window = self._window()
         window.show_profiles()
