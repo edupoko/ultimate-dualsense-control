@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
-    QDialog,
     QDoubleSpinBox,
     QFileDialog,
     QFormLayout,
@@ -397,15 +396,15 @@ class ProfileEditor(QWidget):
         return [part for part in parse_list(self._appids.text()) if not part.isdigit()]
 
 
-class ProfilesDialog(QDialog):
+class ProfilesDialog(QWidget):
+    back_requested = Signal()
+
     def __init__(self, service: LedService, store: ProfileStore | None = None, parent: QWidget | None = None):
         super().__init__(parent)
         self._service = service
         self._store = store or ProfileStore(default_profiles_dir())
         self._current: str | None = None  # nome do perfil mostrado no formulário (None = novo, ainda não salvo)
         self._dirty = False
-        i18n.bind(self.setWindowTitle, "profiles.title")
-        self.setMinimumSize(780, 560)
 
         root = QVBoxLayout(self)
         default_row = QHBoxLayout()
@@ -459,8 +458,8 @@ class ProfilesDialog(QDialog):
         self._save_button.clicked.connect(self._save)
         footer.addWidget(self._save_button)
         close = QPushButton()
-        i18n.bind(close.setText, "profiles.close")
-        close.clicked.connect(self.close)
+        i18n.bind(close.setText, "nav.back")
+        close.clicked.connect(self._back)
         footer.addWidget(close)
         root.addLayout(footer)
 
@@ -514,6 +513,14 @@ class ProfilesDialog(QDialog):
 
     def _mark_dirty(self) -> None:
         self._dirty = True
+
+    def can_leave(self) -> bool:
+        """Pode sair da página? Pergunta antes de descartar uma edição não salva."""
+        return self._confirm_discard()
+
+    def _back(self) -> None:
+        if self.can_leave():
+            self.back_requested.emit()
 
     def _confirm_discard(self) -> bool:
         if not self._dirty:
@@ -625,9 +632,3 @@ class ProfilesDialog(QDialog):
             self._status.setText(tr("profiles.save_failed", error=str(error)))
             return
         self._status.setText(tr("profiles.exported", path=path))
-
-    def closeEvent(self, event) -> None:
-        if self._confirm_discard():
-            super().closeEvent(event)
-        else:
-            event.ignore()

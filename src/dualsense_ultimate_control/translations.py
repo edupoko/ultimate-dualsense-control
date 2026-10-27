@@ -27,6 +27,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "{count} DualSense conectados",
     },
     # --- janela
+    "nav.back": {"pt": "Voltar", "en": "Back", "es": "Volver"},
     "nav.controls": {"pt": "Controles", "en": "Controllers", "es": "Mandos"},
     "window.general": {"pt": "Geral", "en": "General", "es": "General"},
     "window.close": {"pt": "Fechar", "en": "Close", "es": "Cerrar"},
@@ -224,11 +225,6 @@ STRINGS: dict[str, dict[str, str]] = {
         "pt": "Salvar",
         "en": "Save",
         "es": "Guardar",
-    },
-    "profiles.close": {
-        "pt": "Fechar",
-        "en": "Close",
-        "es": "Cerrar",
     },
     "profiles.new_name": {
         "pt": "Novo perfil",

@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QTimer, QUrl
+from PySide6.QtCore import QTimer, QUrl, Signal
 from PySide6.QtGui import QColor, QDesktopServices, QFont, QFontDatabase, QGuiApplication, QSyntaxHighlighter, QTextCharFormat
 from PySide6.QtWidgets import (
     QComboBox,
-    QDialog,
     QHBoxLayout,
     QLabel,
     QPlainTextEdit,
@@ -42,13 +41,13 @@ class LogHighlighter(QSyntaxHighlighter):
             self.setFormat(0, len(text), self._warning)
 
 
-class LogWindow(QDialog):
-    """Mostra o log com atualização automática; permite filtrar, copiar, abrir a pasta e limpar."""
+class LogWindow(QWidget):
+    """Página que mostra o log com atualização automática; permite filtrar, copiar, abrir a pasta e limpar."""
+
+    back_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
-        i18n.bind(self.setWindowTitle, "log.title")
-        self.resize(820, 480)
 
         layout = QVBoxLayout(self)
 
@@ -81,8 +80,8 @@ class LogWindow(QDialog):
             button.clicked.connect(action)
             buttons.addWidget(button)
         close = QPushButton()
-        i18n.bind(close.setText, "window.close")
-        close.clicked.connect(self.close)
+        i18n.bind(close.setText, "nav.back")
+        close.clicked.connect(self.back_requested)
         buttons.addWidget(close)
         layout.addLayout(buttons)
 

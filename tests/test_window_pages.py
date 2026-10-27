@@ -59,10 +59,10 @@ class WindowPagesTest(unittest.TestCase):
         self.assertFalse(window.page("test").isWindow())
         self.assertEqual(set(self._visible_windows()), before)  # nenhuma janela nova
 
-    def test_close_button_of_a_page_goes_back_to_controls(self):
+    def test_back_button_of_a_page_goes_back_to_controls(self):
         window = self._window()
         window.show_logs()
-        window.page("logs").close()
+        window.page("logs").back_requested.emit()
         self.assertEqual(window.current_page(), "controls")
         window.show_logs()  # volta a aparecer depois de fechada
         self.assertTrue(window.page("logs").isVisible())
@@ -76,6 +76,7 @@ class WindowPagesTest(unittest.TestCase):
         window.show_profiles()
         self.assertIsInstance(window.page("profiles"), ProfilesDialog)
         self.assertFalse(window.page("profiles").isWindow())
+        self.assertTrue(window.page("profiles").can_leave())  # nada editado
 
     def test_pending_profile_edit_can_keep_the_page(self):
         window = self._window()
@@ -86,8 +87,8 @@ class WindowPagesTest(unittest.TestCase):
         self.assertEqual(window.current_page(), "profiles")
         self.assertEqual(window._nav.currentRow(), window._page_keys.index("profiles"))
         with mock.patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes) as question:
-            window.page("profiles").close()
-        self.assertEqual(question.call_count, 1)  # o "Fechar" pergunta uma vez só
+            window.page("profiles")._back()
+        self.assertEqual(question.call_count, 1)  # o "Voltar" pergunta uma vez só
         self.assertEqual(window.current_page(), "controls")
 
 

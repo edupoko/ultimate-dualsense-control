@@ -325,8 +325,8 @@ class MainWindow(QWidget):
             page = ProfilesDialog(self._service)
         else:
             page = LogWindow()
-        # O "Fechar" (e o Esc) desses diálogos agora só volta para a página dos controles.
-        page.finished.connect(lambda _result: self.set_page("controls", force=True))
+        # O "Voltar" desses painéis só leva de volta à página dos controles.
+        page.back_requested.connect(lambda: self.set_page("controls", force=True))
         return page
 
     def _add_page(self, key: str, page: QWidget) -> None:
@@ -341,9 +341,7 @@ class MainWindow(QWidget):
 
     def _can_leave(self, key: str) -> bool:
         page = self._pages.get(key)
-        if isinstance(page, ProfilesDialog):
-            return page._confirm_discard()
-        return True
+        return page.can_leave() if isinstance(page, ProfilesDialog) else True
 
     def _on_nav(self, row: int) -> None:
         # Se a página atual recusar a saída, set_page devolve a seleção para ela.
