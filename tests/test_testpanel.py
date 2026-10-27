@@ -51,6 +51,17 @@ class ControllerArtTest(unittest.TestCase):
         view.set_state(make_state(buttons=frozenset({"cross"})))
         self.assertEqual(view.grab().toImage().pixelColor(cross), accent)
 
+    def test_outline_follows_the_theme(self):
+        from dualsense_ultimate_control import theme
+
+        view = ControllerView()
+        view.resize(529, 403)
+        view.set_state(make_state())
+        for tokens in (theme.DARK, theme.LIGHT):
+            view.setPalette(theme.build_palette(tokens, QColor("#7b61c9")))
+            image = view.grab().toImage()
+            self.assertEqual(image.pixelColor(264, 200), QColor(tokens.window))  # fundo do corpo
+
     def test_trigger_opacity_grows_with_pressure(self):
         view = ControllerView()
         view.resize(529, 403)
