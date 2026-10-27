@@ -10,13 +10,17 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QPalette
-from PySide6.QtWidgets import QApplication, QListWidget, QWidget
+from PySide6.QtCore import QByteArray, QRectF, QSize, Qt
+from PySide6.QtGui import QColor, QIcon, QPainter, QPalette, QPixmap
+from PySide6.QtSvg import QSvgRenderer
+from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
+
+from . import i18n
 
 RADIUS = 6  # cantos dos itens selecionados, em px
 ITEM_PADDING = (8, 10)  # vertical, horizontal
 ITEM_MARGIN = 2  # espaço vertical entre itens
+ICON_SIZE = 20  # px, ícones da barra lateral
 DEFAULT_ACCENT = "#7b61c9"  # só quando nem a plataforma nem o estilo informam um destaque
 
 
@@ -32,6 +36,44 @@ class Tokens:
 
 DARK = Tokens(window="#1c1e23", base="#14161a", alternate="#23262c", button="#2a2d34", text="#e8eaed", muted="#8b9098")
 LIGHT = Tokens(window="#f1f2f4", base="#ffffff", alternate="#e9ebee", button="#e6e8eb", text="#1d1f23", muted="#7a7f87")
+
+
+# Ícones de traço (grade 24×24), desenhados na cor do texto: um só desenho serve aos dois temas.
+ICONS = {
+    "controls": (
+        '<path d="M6 8h12a4 4 0 0 1 4 4v2a3 3 0 0 1-5.2 2L15 14H9l-1.8 2A3 3 0 0 1 2 14v-2a4 4 0 0 1 4-4z"/>'
+        '<path d="M7 10.5v3M5.5 12h3M16 11h.01M18 13h.01"/>'
+    ),
+    "test": '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+    "profiles": (
+        '<path d="M4 6h8M18 6h2M4 12h2M12 12h8M4 18h10M20 18h0"/>'
+        '<circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>'
+    ),
+    "logs": '<path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7"/>',
+}
+
+
+def render_icon(name: str, color: QColor, size: int = ICON_SIZE, ratio: float = 1.0) -> QPixmap:
+    svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{color.name()}" '
+        f'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">{ICONS[name]}</svg>'
+    )
+    pixmap = QPixmap(round(size * ratio), round(size * ratio))
+    pixmap.setDevicePixelRatio(ratio)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    QSvgRenderer(QByteArray(svg.encode())).render(painter, QRectF(0, 0, size, size))
+    painter.end()
+    return pixmap
+
+
+def nav_icon(name: str, palette: QPalette, ratio: float = 1.0) -> QIcon:
+    """Ícone na cor do texto e, quando o item está selecionado, na cor do texto realçado."""
+    icon = QIcon()
+    icon.addPixmap(render_icon(name, palette.color(QPalette.ColorRole.WindowText), ratio=ratio), QIcon.Mode.Normal)
+    icon.addPixmap(render_icon(name, palette.color(QPalette.ColorRole.HighlightedText), ratio=ratio), QIcon.Mode.Selected)
+    return icon
 
 
 def is_dark(palette: QPalette) -> bool:
@@ -120,11 +162,49 @@ class SideNav(QListWidget):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setFrameShape(QListWidget.Shape.NoFrame)
+        self.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setTextElideMode(Qt.TextElideMode.ElideRight)
+        self._icon_names: list[str] = []
         self._restyle()
         # O sinal do app (e não o evento do widget): com folha de estilo própria o evento não chega.
         QApplication.instance().paletteChanged.connect(self._restyle)
 
+    def add_page(self, icon_name: str) -> QListWidgetItem:
+        item = QListWidgetItem()
+        self._icon_names.append(icon_name)
+        self.addItem(item)
+        item.setIcon(nav_icon(icon_name, QApplication.palette(), self.devicePixelRatioF()))
+        return item
+
     def _restyle(self, _palette: QPalette | None = None) -> None:
-        css = sidebar_qss(QApplication.palette())
+        palette = QApplication.palette()
+        css = sidebar_qss(palette)
         if css != self.styleSheet():
             self.setStyleSheet(css)
+            for row, name in enumerate(self._icon_names):  # a cor do texto mudou junto com a paleta
+                self.item(row).setIcon(nav_icon(name, palette, self.devicePixelRatioF()))
+
+
+def section(title_key: str) -> tuple[QWidget, QVBoxLayout]:
+    """Seção com cabeçalho (título em negrito e uma linha fina) e um layout para o conteúdo."""
+    holder = QWidget()
+    outer = QVBoxLayout(holder)
+    outer.setContentsMargins(0, 0, 0, 0)
+    outer.setSpacing(6)
+    head = QHBoxLayout()
+    head.setSpacing(8)
+    title = QLabel()
+    font = title.font()
+    font.setBold(True)
+    title.setFont(font)
+    i18n.bind(title.setText, title_key)
+    line = QFrame()
+    line.setFixedHeight(1)
+    line.setStyleSheet("background: palette(mid);")
+    head.addWidget(title)
+    head.addWidget(line, 1, Qt.AlignmentFlag.AlignVCenter)
+    outer.addLayout(head)
+    content = QVBoxLayout()
+    outer.addLayout(content)
+    return holder, content

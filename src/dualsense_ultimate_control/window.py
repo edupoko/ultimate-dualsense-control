@@ -11,10 +11,8 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
-    QListWidgetItem,
     QPushButton,
     QScrollArea,
     QStackedWidget,
@@ -30,7 +28,7 @@ from .logview import LogWindow
 from .permissions import RuleInstaller
 from .profiles_dialog import ProfilesDialog
 from .service import LedService
-from .theme import SideNav
+from .theme import SideNav, section
 from .testpanel.window import TestWindow
 from .widgets import (
     AutoPlayersRow,
@@ -89,7 +87,7 @@ class MainWindow(QWidget):
         # Tudo abre dentro desta janela: a lista à esquerda troca a página da direita.
         root = QHBoxLayout(self)
         self._nav = SideNav()
-        self._nav.setFixedWidth(160)
+        self._nav.setFixedWidth(200)
         root.addWidget(self._nav)
         column = QVBoxLayout()
         root.addLayout(column, 1)
@@ -106,8 +104,7 @@ class MainWindow(QWidget):
         self._current: str | None = None
         self._help_slots: dict[str, QVBoxLayout] = {}
         for key in self._page_keys:
-            item = QListWidgetItem()
-            self._nav.addItem(item)
+            item = self._nav.add_page(key)
             i18n.bind(lambda text, item=item: item.setText(text), PAGE_TITLES[key])
         self._nav.currentRowChanged.connect(self._on_nav)
 
@@ -139,9 +136,7 @@ class MainWindow(QWidget):
             profiles_button.clicked.connect(self.show_profiles)
             layout.addWidget(profiles_button)
 
-        general = QGroupBox()
-        i18n.bind(general.setTitle, "window.general")
-        general_layout = QVBoxLayout(general)
+        general, general_layout = section("window.general")
         general_layout.addWidget(LanguageRow(service))
         general_layout.addWidget(AutostartRow())
         general_layout.addWidget(AutoPlayersRow(service))
@@ -260,10 +255,8 @@ class MainWindow(QWidget):
         layout.addWidget(self._grant_button)
         return self._banner
 
-    def _build_light_group(self) -> QGroupBox:
-        group = QGroupBox()
-        i18n.bind(group.setTitle, "window.light")
-        layout = QVBoxLayout(group)
+    def _build_light_group(self) -> QWidget:
+        group, layout = section("window.light")
 
         color_row = QHBoxLayout()
         self._swatch = QFrame()
@@ -277,10 +270,8 @@ class MainWindow(QWidget):
         layout.addWidget(ColorSliders(self._service))
         return group
 
-    def _build_players_group(self) -> QGroupBox:
-        group = QGroupBox()
-        i18n.bind(group.setTitle, "window.leds")
-        layout = QVBoxLayout(group)
+    def _build_players_group(self) -> QWidget:
+        group, layout = section("window.leds")
         layout.addWidget(PlayerRow(self._service))
         layout.addWidget(MuteLedRow(self._service))
         layout.addWidget(DisconnectRow(self._service))
