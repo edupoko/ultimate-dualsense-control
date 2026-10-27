@@ -85,7 +85,7 @@ class TrayIcon(QObject):
         popup.add_separator()
 
         popup.add_row(PlayerRow(service))
-        popup.add_row(MuteLedRow(service))
+        popup.add_row(MuteLedRow(service, compact=True))
         popup.add_separator()
 
         if self._emulation is not None:

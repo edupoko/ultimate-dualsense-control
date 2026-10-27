@@ -7,7 +7,7 @@ from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QWidget
 
 from dualsense_ultimate_control.emulation import EmulationProcess
 from dualsense_ultimate_control.logview import LogWindow
@@ -46,6 +46,16 @@ class WindowPagesTest(unittest.TestCase):
         self.assertEqual(window.current_page(), "controls")
         self.assertIsNone(window.page("logs"))  # criada só na primeira visita
 
+    def test_general_options_live_in_the_settings_page(self):
+        window = self._window()
+        controls_rows = {type(w).__name__ for w in window.page("controls").findChildren(QWidget)}
+        self.assertFalse({"LanguageRow", "AutostartRow", "CloseToTrayRow", "LogsRow"} & controls_rows)
+        self.assertEqual(window._page_keys[-1], "settings")
+        self.assertTrue(window.set_page("settings"))
+        rows = {type(w).__name__ for w in window.page("settings").findChildren(QWidget)}
+        self.assertTrue({"LanguageRow", "AutostartRow", "AutoPlayersRow", "CloseToTrayRow", "LogsRow"} <= rows)
+        self.assertFalse(window.page("settings").isWindow())
+
     def test_logs_and_test_open_inside_the_window(self):
         window = self._window()
         before = set(self._visible_windows())
@@ -70,9 +80,9 @@ class WindowPagesTest(unittest.TestCase):
     def test_profiles_page_only_with_emulation(self):
         window = self._window(emulation=False)
         self.assertFalse(window.set_page("profiles"))
-        self.assertEqual(window._nav.count(), 3)
-        window = self._window()
         self.assertEqual(window._nav.count(), 4)
+        window = self._window()
+        self.assertEqual(window._nav.count(), 5)
         window.show_profiles()
         self.assertIsInstance(window.page("profiles"), ProfilesDialog)
         self.assertFalse(window.page("profiles").isWindow())

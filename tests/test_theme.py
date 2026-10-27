@@ -76,6 +76,14 @@ class ThemeTest(unittest.TestCase):
         self.assertEqual(holder.findChildren(QLabel)[0].text(), "Barra de luz")
         self.assertEqual(content.count(), 1)
 
+    def test_switch_colors_follow_the_dark_and_light_themes(self):
+        dark = theme.switch_colors(theme.build_palette(theme.DARK, QColor("#7b61c9")))
+        light = theme.switch_colors(theme.build_palette(theme.LIGHT, QColor("#7b61c9")))
+        self.assertLess(dark.off_track.lightness(), 100)  # trilho escuro, não o branco do tema claro
+        self.assertNotEqual(dark.off_knob.name(), "#ffffff")
+        self.assertEqual(light.off_knob.name(), "#ffffff")
+        self.assertEqual(light.off_outline.alpha(), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

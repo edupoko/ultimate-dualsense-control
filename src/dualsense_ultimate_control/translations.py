@@ -32,6 +32,7 @@ STRINGS: dict[str, dict[str, str]] = {
     "confirm.ok": {"pt": "OK", "en": "OK", "es": "OK"},
     "confirm.close": {"pt": "Fechar", "en": "Close", "es": "Cerrar"},
     "nav.back": {"pt": "Voltar", "en": "Back", "es": "Volver"},
+    "nav.settings": {"pt": "Configurações", "en": "Settings", "es": "Configuración"},
     "nav.controls": {"pt": "Controles", "en": "Controllers", "es": "Mandos"},
     "window.general": {"pt": "Geral", "en": "General", "es": "General"},
     "window.close": {"pt": "Fechar", "en": "Close", "es": "Cerrar"},

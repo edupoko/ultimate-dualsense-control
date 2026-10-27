@@ -50,7 +50,7 @@ from .widgets import (
 ICON_PATH = Path(__file__).with_name("icons") / "dualsense-ultimate-control.svg"
 
 # Título de cada página na lista lateral.
-PAGE_TITLES = {"controls": "nav.controls", "test": "test.title", "profiles": "profiles.title", "logs": "log.title"}
+PAGE_TITLES = {"controls": "nav.controls", "test": "test.title", "profiles": "profiles.title", "logs": "log.title", "settings": "nav.settings"}
 
 
 def app_icon() -> QIcon:
@@ -98,7 +98,7 @@ class MainWindow(QWidget):
         column.addWidget(self._stack, 1)
 
         # Páginas criadas só na primeira visita; a ordem é a da lista.
-        self._page_keys = ["controls", "test"] + (["profiles"] if emulation is not None else []) + ["logs"]
+        self._page_keys = ["controls", "test"] + (["profiles"] if emulation is not None else []) + ["logs", "settings"]
         self._pages: dict[str, QWidget] = {}
         self._scrolls: dict[str, QScrollArea] = {}
         self._current: str | None = None
@@ -136,16 +136,6 @@ class MainWindow(QWidget):
             profiles_button.clicked.connect(self.show_profiles)
             layout.addWidget(profiles_button)
 
-        general, general_layout = section("window.general")
-        general_layout.addWidget(LanguageRow(service))
-        general_layout.addWidget(AutostartRow())
-        general_layout.addWidget(AutoPlayersRow(service))
-        close_to_tray = CloseToTrayRow(service)
-        # Sem bandeja não há para onde mandar o app: fechar sempre encerra.
-        close_to_tray.setEnabled(tray_available)
-        general_layout.addWidget(close_to_tray)
-        general_layout.addWidget(LogsRow(self.show_logs))
-        layout.addWidget(general)
         layout.addStretch(1)
         self._add_page("controls", controls)
         self.set_page("controls")
@@ -338,7 +328,26 @@ class MainWindow(QWidget):
         self._nav.setCurrentRow(self._page_keys.index(key))
         self._nav.blockSignals(False)
 
+    def _build_settings_page(self) -> QWidget:
+        """Opções de funcionamento do app (o antigo grupo "Geral" da página Controles)."""
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        general, general_layout = section("window.general")
+        general_layout.addWidget(LanguageRow(self._service))
+        general_layout.addWidget(AutostartRow())
+        general_layout.addWidget(AutoPlayersRow(self._service))
+        close_to_tray = CloseToTrayRow(self._service)
+        # Sem bandeja não há para onde mandar o app: fechar sempre encerra.
+        close_to_tray.setEnabled(self._tray_available)
+        general_layout.addWidget(close_to_tray)
+        general_layout.addWidget(LogsRow(self.show_logs))
+        layout.addWidget(general)
+        layout.addStretch(1)
+        return page
+
     def _create_page(self, key: str) -> QWidget:
+        if key == "settings":
+            return self._build_settings_page()
         if key == "test":
             return TestWindow(self._service)
         if key == "profiles":

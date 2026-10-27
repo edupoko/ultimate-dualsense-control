@@ -49,6 +49,11 @@ ICONS = {
         '<path d="M4 6h8M18 6h2M4 12h2M12 12h8M4 18h10M20 18h0"/>'
         '<circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>'
     ),
+    "settings": (
+        '<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7"/>'
+        '<path d="M19 12h2.5M5 12H2.5M12 19v2.5M12 5V2.5M16.95 16.95l1.77 1.77M7.05 16.95l-1.77 1.77'
+        'M7.05 7.05 5.28 5.28M16.95 7.05l1.77-1.77"/>'
+    ),
     "logs": '<path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7"/>',
 }
 
@@ -78,6 +83,24 @@ def nav_icon(name: str, palette: QPalette, ratio: float = 1.0) -> QIcon:
 
 def is_dark(palette: QPalette) -> bool:
     return palette.color(QPalette.ColorRole.Window).lightness() < 128
+
+
+@dataclass(frozen=True)
+class SwitchColors:
+    off_track: QColor
+    off_outline: QColor
+    off_knob: QColor
+    on_knob: QColor
+
+
+def switch_colors(palette: QPalette) -> SwitchColors:
+    """Cores do interruptor: no tema escuro, trilho e botão em cinzas escuros em vez do branco puro."""
+    if is_dark(palette):
+        return SwitchColors(QColor("#3a3d44"), QColor("#5a5f69"), QColor("#b4b8c0"), QColor("#f2f3f5"))
+    text = palette.color(QPalette.ColorRole.WindowText)
+    track = QColor(text)
+    track.setAlpha(90)  # translúcido: a cor "mid" do tema pode ser igual ao fundo e sumir
+    return SwitchColors(track, QColor(0, 0, 0, 0), QColor("white"), QColor("white"))
 
 
 def build_palette(tokens: Tokens, accent: QColor) -> QPalette:

@@ -124,6 +124,7 @@ class CloseToTrayTest(unittest.TestCase):
 
     def test_switch_is_disabled_without_a_tray(self):
         window = MainWindow(self.service, tray_available=False)
+        window.set_page("settings")  # a linha vive na página Configurações, criada na primeira visita
         row = window.findChild(CloseToTrayRow)
         self.assertFalse(row.isEnabled())
 

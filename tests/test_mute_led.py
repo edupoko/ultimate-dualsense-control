@@ -114,16 +114,17 @@ class MuteLedServiceTest(unittest.TestCase):
         self.service.set_mute_led(True)
         self.assertTrue(self.service.needs_permission)
 
-    def test_row_uses_a_compact_switch_smaller_than_the_regular_one(self):
-        mute_row, autostart_row = MuteLedRow(self.service), AutostartRow()  # precisam continuar vivos
-        compact = mute_row.findChild(CompactToggleSwitch)
+    def test_window_row_has_the_regular_switch_and_the_tray_row_the_compact_one(self):
+        window_row, tray_row, autostart_row = MuteLedRow(self.service), MuteLedRow(self.service, compact=True), AutostartRow()
         regular = autostart_row.findChild(ToggleSwitch)
-        self.assertIsNotNone(compact)
+        self.assertIsNone(window_row.findChild(CompactToggleSwitch))  # na janela: igual ao das outras linhas
+        self.assertEqual(window_row.findChild(ToggleSwitch).size(), regular.size())
+        compact = tray_row.findChild(CompactToggleSwitch)
         self.assertLess(compact.width(), regular.width())
         self.assertLess(compact.height(), regular.height())
 
     def test_switch_row_follows_the_service(self):
-        row = MuteLedRow(self.service)
+        row = MuteLedRow(self.service, compact=True)
         switch = row.findChild(CompactToggleSwitch)
         self.service.refresh()
         self.assertFalse(switch.isChecked())

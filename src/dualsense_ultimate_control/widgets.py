@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 
 import logging
 
-from . import autostart, bluetooth, i18n
+from . import autostart, bluetooth, i18n, theme
 from .confirm import HelpPanel
 from .colors import PRESETS
 from .i18n import tr
@@ -525,25 +525,23 @@ class ToggleSwitch(QAbstractButton):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         palette = self.palette()
+        colors = theme.switch_colors(palette)
         on = self.isChecked()
-        if on:
-            track_color = palette.highlight().color()
-        else:
-            # Cor de texto translúcida: a cor "mid" do tema pode ser igual ao fundo do menu e sumir.
-            track_color = palette.windowText().color()
-            track_color.setAlpha(90)
+        track_color = palette.highlight().color() if on else QColor(colors.off_track)
         if not self.isEnabled():
             track_color.setAlpha(min(track_color.alpha(), 110))
         track = QRectF(1, 3, self.width() - 2, self.height() - 6)
-        painter.setPen(Qt.PenStyle.NoPen)
+        outline = QPen(colors.off_outline, 1) if not on and colors.off_outline.alpha() else Qt.PenStyle.NoPen
+        painter.setPen(outline)
         painter.setBrush(track_color)
         painter.drawRoundedRect(track, track.height() / 2, track.height() / 2)
 
         knob = self.height() - 4
         x = self.width() - knob - 2 if on else 2
+        painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QColor(0, 0, 0, 50))
         painter.drawEllipse(QRectF(x, 3, knob, knob))
-        painter.setBrush(QColor("white"))
+        painter.setBrush(colors.on_knob if on else colors.off_knob)
         painter.drawEllipse(QRectF(x, 2, knob, knob))
         if self.hasFocus():
             painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -697,16 +695,18 @@ class AutostartRow(SwitchRow):
 
 
 class MuteLedRow(SwitchRow):
-    """LED do botão de microfone do controle selecionado, com um interruptor compacto."""
+    """LED do botão de microfone do controle selecionado.
 
-    def __init__(self, service: LedService, parent: QWidget | None = None):
+    Na janela usa o interruptor de tamanho normal, igual ao das outras linhas; o menu da bandeja pede o compacto."""
+
+    def __init__(self, service: LedService, parent: QWidget | None = None, compact: bool = False):
         super().__init__(
             "row.mute_led",
             "row.mute_led_tip",
             lambda: service.settings.mute_led,
             service.set_mute_led,
             parent,
-            indicator=CompactToggleSwitch,
+            indicator=CompactToggleSwitch if compact else ToggleSwitch,
         )
         # Cada controle tem o seu estado; trocar de aba ou aplicar de outro lugar atualiza o interruptor.
         service.settings_changed.connect(self._sync)
