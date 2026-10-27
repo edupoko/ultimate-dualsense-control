@@ -173,15 +173,20 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "La emulación de Xbox 360 se detuvo.\n\n{detail}",
     },
     # --- perfis do emulador
-    "profiles.open": {
-        "pt": "Perfis de emulação…",
-        "en": "Emulation profiles…",
-        "es": "Perfiles de emulación…",
-    },
     "profiles.title": {
         "pt": "Perfis de emulação",
         "en": "Emulation profiles",
         "es": "Perfiles de emulación",
+    },
+    "profiles.quick": {
+        "pt": "Perfil de emulação",
+        "en": "Emulation profile",
+        "es": "Perfil de emulación",
+    },
+    "profiles.quick_tip": {
+        "pt": "Troca o perfil usado quando nenhum aplicativo aberto tem perfil próprio",
+        "en": "Switches the profile used when no running app has its own profile",
+        "es": "Cambia el perfil usado cuando ningún programa abierto tiene perfil propio",
     },
     "profiles.default": {
         "pt": "Perfil padrão:",
@@ -516,7 +521,6 @@ STRINGS: dict[str, dict[str, str]] = {
     },
     "bluetooth.disconnect": {"pt": "Desconectar agora", "en": "Disconnect now", "es": "Desconectar ahora"},
     # --- tela de teste
-    "test.open": {"pt": "Testar controle…", "en": "Test controller…", "es": "Probar mando…"},
     "test.title": {"pt": "Testar controle", "en": "Test controller", "es": "Probar mando"},
     "test.waiting": {"pt": "Aguardando dados do controle…", "en": "Waiting for controller data…", "es": "Esperando datos del mando…"},
     "test.no_controller": {"pt": "Nenhum DualSense conectado", "en": "No DualSense connected", "es": "Ningún DualSense conectado"},

@@ -26,6 +26,7 @@ from .confirm import ConfirmBar
 from .emulation import EmulationProcess
 from .logview import LogWindow
 from .permissions import RuleInstaller
+from .profile_picker import ProfilePicker
 from .profiles_dialog import ProfilesDialog
 from .service import LedService
 from .theme import SideNav, section
@@ -125,16 +126,9 @@ class MainWindow(QWidget):
         layout.addWidget(self._build_light_group())
         layout.addWidget(self._build_players_group())
 
-        test_button = QPushButton()
-        i18n.bind(test_button.setText, "test.open")
-        test_button.clicked.connect(self.show_test)
-        layout.addWidget(test_button)
         if emulation is not None:
             layout.addWidget(EmulationRow(service, emulation))
-            profiles_button = QPushButton()
-            i18n.bind(profiles_button.setText, "profiles.open")
-            profiles_button.clicked.connect(self.show_profiles)
-            layout.addWidget(profiles_button)
+            layout.addWidget(ProfilePicker(service))
 
         layout.addStretch(1)
         self._add_page("controls", controls)

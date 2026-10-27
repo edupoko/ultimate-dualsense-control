@@ -7,10 +7,11 @@ from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtWidgets import QApplication, QPushButton, QWidget
 
 from dualsense_ultimate_control.emulation import EmulationProcess
 from dualsense_ultimate_control.logview import LogWindow
+from dualsense_ultimate_control.profile_picker import ProfilePicker
 from dualsense_ultimate_control.profiles_dialog import ProfilesDialog
 from dualsense_ultimate_control.service import LedService
 from dualsense_ultimate_control.testpanel.window import TestWindow
@@ -45,6 +46,13 @@ class WindowPagesTest(unittest.TestCase):
         window = self._window()
         self.assertEqual(window.current_page(), "controls")
         self.assertIsNone(window.page("logs"))  # criada só na primeira visita
+
+    def test_controls_page_has_no_buttons_to_other_pages_and_has_the_profile_picker(self):
+        window = self._window()
+        texts = {button.text() for button in window.page("controls").findChildren(QPushButton)}
+        self.assertFalse(texts & {"Testar controle…", "Perfis de emulação…"})
+        self.assertIsNotNone(window.page("controls").findChild(ProfilePicker))
+        self.assertIsNone(self._window(emulation=False).page("controls").findChild(ProfilePicker))
 
     def test_general_options_live_in_the_settings_page(self):
         window = self._window()
