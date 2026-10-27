@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtCore import QTimer, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
@@ -14,8 +14,12 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QListWidget,
+    QListWidgetItem,
     QMessageBox,
     QPushButton,
+    QScrollArea,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -48,6 +52,10 @@ from .widgets import (
 
 ICON_PATH = Path(__file__).with_name("icons") / "dualsense-ultimate-control.svg"
 
+# Título de cada página na lista lateral.
+PAGE_TITLES = {"controls": "nav.controls", "test": "test.title", "profiles": "profiles.title", "logs": "log.title"}
+
+
 def app_icon() -> QIcon:
     return QIcon(str(ICON_PATH))
 
@@ -70,18 +78,38 @@ class MainWindow(QWidget):
         self._service = service
         self._tray_available = tray_available
         self._quit_app = quit_app
-        self._log_window: LogWindow | None = None
-        self._test_window: TestWindow | None = None
-        self._profiles_dialog: ProfilesDialog | None = None
         self._installer = installer or RuleInstaller()
         self._installer.finished.connect(self._on_installed)
         # Pergunta automaticamente só uma vez a cada perda de permissão; depois fica o botão.
         self._asked_permission = False
         self.setWindowTitle("DualSense Ultimate Control")
         self.setWindowIcon(app_icon())
-        self.setMinimumWidth(400)
+        self.setMinimumWidth(560)
+        self.resize(900, 680)
 
-        layout = QVBoxLayout(self)
+        # Tudo abre dentro desta janela: a lista à esquerda troca a página da direita.
+        root = QHBoxLayout(self)
+        self._nav = QListWidget()
+        self._nav.setFixedWidth(160)
+        root.addWidget(self._nav)
+        column = QVBoxLayout()
+        root.addLayout(column, 1)
+        self._stack = QStackedWidget()
+        column.addWidget(self._stack, 1)
+
+        # Páginas criadas só na primeira visita; a ordem é a da lista.
+        self._page_keys = ["controls", "test"] + (["profiles"] if emulation is not None else []) + ["logs"]
+        self._pages: dict[str, QWidget] = {}
+        self._scrolls: dict[str, QScrollArea] = {}
+        self._current: str | None = None
+        for key in self._page_keys:
+            item = QListWidgetItem()
+            self._nav.addItem(item)
+            i18n.bind(lambda text, item=item: item.setText(text), PAGE_TITLES[key])
+        self._nav.currentRowChanged.connect(self._on_nav)
+
+        controls = QWidget()
+        layout = QVBoxLayout(controls)
 
         self._status = QLabel()
         self._status.setWordWrap(True)
@@ -120,6 +148,9 @@ class MainWindow(QWidget):
         general_layout.addWidget(close_to_tray)
         general_layout.addWidget(LogsRow(self.show_logs))
         layout.addWidget(general)
+        layout.addStretch(1)
+        self._add_page("controls", controls)
+        self.set_page("controls")
 
         footer = QHBoxLayout()
         footer.addStretch(1)
@@ -127,7 +158,7 @@ class MainWindow(QWidget):
         i18n.bind(quit_button.setText, "window.close")
         quit_button.clicked.connect(lambda: self._quit_app())
         footer.addWidget(quit_button)
-        layout.addLayout(footer)
+        column.addLayout(footer)
 
         service.settings_changed.connect(self._sync)
         service.status_changed.connect(self._on_status)
@@ -248,25 +279,76 @@ class MainWindow(QWidget):
         self._quit_app()
 
     def show_logs(self) -> None:
-        if self._log_window is None:
-            self._log_window = LogWindow(self)
-        self._log_window.show()
-        self._log_window.raise_()
-        self._log_window.activateWindow()
+        self.set_page("logs")
+        self.show_window()
 
     def show_profiles(self) -> None:
-        if self._profiles_dialog is None:
-            self._profiles_dialog = ProfilesDialog(self._service)
-        self._profiles_dialog.show()
-        self._profiles_dialog.raise_()
-        self._profiles_dialog.activateWindow()
+        self.set_page("profiles")
+        self.show_window()
 
     def show_test(self) -> None:
-        if self._test_window is None:
-            self._test_window = TestWindow(self._service)
-        self._test_window.show()
-        self._test_window.raise_()
-        self._test_window.activateWindow()
+        self.set_page("test")
+        self.show_window()
+
+    def current_page(self) -> str:
+        return self._current
+
+    def page(self, key: str) -> QWidget | None:
+        return self._pages.get(key)
+
+    def set_page(self, key: str, force: bool = False) -> bool:
+        """Mostra a página `key`; devolve False se a página atual recusou a saída.
+
+        `force` pula a pergunta da página atual (ela mesma já perguntou ao ser fechada)."""
+        if key not in self._page_keys:
+            return False
+        if not force and self._current not in (None, key) and not self._can_leave(self._current):
+            self._select_nav(self._current)
+            return False
+        if key not in self._pages:
+            self._add_page(key, self._create_page(key))
+        self._current = key
+        self._pages[key].show()  # o "Fechar" da própria página pode tê-la escondido
+        self._stack.setCurrentWidget(self._scrolls[key])
+        self._select_nav(key)
+        return True
+
+    def _select_nav(self, key: str) -> None:
+        self._nav.blockSignals(True)
+        self._nav.setCurrentRow(self._page_keys.index(key))
+        self._nav.blockSignals(False)
+
+    def _create_page(self, key: str) -> QWidget:
+        if key == "test":
+            return TestWindow(self._service)
+        if key == "profiles":
+            page = ProfilesDialog(self._service)
+        else:
+            page = LogWindow()
+        # O "Fechar" (e o Esc) desses diálogos agora só volta para a página dos controles.
+        page.finished.connect(lambda _result: self.set_page("controls", force=True))
+        return page
+
+    def _add_page(self, key: str, page: QWidget) -> None:
+        page.setWindowFlags(Qt.WindowType.Widget)  # deixa de ser janela própria
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setWidget(page)
+        self._pages[key] = page
+        self._scrolls[key] = scroll
+        self._stack.addWidget(scroll)
+
+    def _can_leave(self, key: str) -> bool:
+        page = self._pages.get(key)
+        if isinstance(page, ProfilesDialog):
+            return page._confirm_discard()
+        return True
+
+    def _on_nav(self, row: int) -> None:
+        # Se a página atual recusar a saída, set_page devolve a seleção para ela.
+        if row >= 0:
+            self.set_page(self._page_keys[row])
 
     def show_window(self) -> None:
         self.showNormal()

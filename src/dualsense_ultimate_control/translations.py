@@ -27,6 +27,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "{count} DualSense conectados",
     },
     # --- janela
+    "nav.controls": {"pt": "Controles", "en": "Controllers", "es": "Mandos"},
     "window.general": {"pt": "Geral", "en": "General", "es": "General"},
     "window.close": {"pt": "Fechar", "en": "Close", "es": "Cerrar"},
     "window.light": {"pt": "Barra de luz", "en": "Light bar", "es": "Barra de luz"},
