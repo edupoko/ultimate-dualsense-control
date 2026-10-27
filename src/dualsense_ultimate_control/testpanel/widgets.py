@@ -3,16 +3,23 @@
 from __future__ import annotations
 
 import math
+import re
 
-from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPolygonF
+from pathlib import Path
+
+from PySide6.QtCore import QByteArray, QEvent, QPointF, QRectF, QSize, Qt
+from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QPixmap, QPolygonF
+from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
 from ..ds5.reports import TOUCHPAD_HEIGHT, TOUCHPAD_WIDTH, InputState
-from .model import ImuHistory, RangeTracker, stick_point
+from .model import ImuHistory, RangeTracker, lit_parts, stick_point, trigger_percent
 
 AXIS_COLORS = (QColor("#e5484d"), QColor("#30a46c"), QColor("#3e63dd"))
-_FACE = {"square": "□", "cross": "✕", "circle": "○", "triangle": "△"}
+_SVG = Path(__file__).resolve().parent.parent / "icons" / "controller-outline.svg"
+_SVG_W, _SVG_H = 529, 403
+# Cores literais do arquivo (as mesmas de scripts/controller_outline.py), trocadas pelas do tema.
+_SVG_OUTER, _SVG_INNER, _SVG_BASE = "#f4f6f8", "#b9bfc7", "#2b3238"
 
 
 class _Canvas(QWidget):
@@ -32,91 +39,155 @@ class _Canvas(QWidget):
 
 
 class ControllerView(_Canvas):
-    """Contorno do controle com botões, direcional e ombros acesos conforme o estado."""
+    """Desenho do controle (SVG com um id por peça): peças acesas conforme o estado.
 
-    # (nome, x, y) num desenho de 400 × 240
-    _FACE_POS = {"triangle": (320, 70), "circle": (350, 100), "cross": (320, 130), "square": (290, 100)}
-    _SMALL = {"create": (150, 70), "options": (250, 70), "mute": (200, 130), "ps": (200, 100)}
+    O contorno fica num pixmap em cache, refeito só ao redimensionar ou trocar a paleta;
+    por quadro só se pintam as peças acesas, os analógicos e os dedos.
+    """
+
+    _STICKS = {"l3": (180.0, 224.0), "r3": (_SVG_W - 180.0, 224.0)}
+    _STICK_TRAVEL = 12.0
+    _PAD = QRectF(176, 92, _SVG_W - 352, 86)  # área útil do touchpad no desenho
+    # Barra vertical de cada gatilho, ao lado da aba (x do lado esquerdo; o direito é o espelho).
+    _BAR = QRectF(52, 12, 9, 52)
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.state: InputState | None = None
-        self.setMinimumSize(300, 190)
+        self._shown: tuple | None = None
+        self._cache_key: tuple | None = None
+        self._cache: QPixmap | None = None
+        self._lit_renderer: QSvgRenderer | None = None
+        self._colors_key: tuple | None = None
+        self.setMinimumSize(320, 244)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
     def set_state(self, state: InputState | None) -> None:
         self.state = state
-        self.update()
+        if state is not None:
+            self.setAccessibleDescription(f"L2 {trigger_percent(state.l2)}%, R2 {trigger_percent(state.r2)}%")
+        shown = _shown_key(state)
+        if shown != self._shown:  # só repinta quando algo visível mudou
+            self._shown = shown
+            self.update()
+
+    def changeEvent(self, event) -> None:
+        if event.type() == QEvent.Type.PaletteChange:
+            self._colors_key = None
+            self._cache_key = None
+        super().changeEvent(event)
+
+    def _renderers(self) -> tuple[QSvgRenderer, QSvgRenderer, QColor]:
+        """Renderizadores com as cores do tema: o do contorno e o das peças acesas."""
+        palette = self.palette()
+        role = palette.ColorRole
+        text, window, accent = palette.color(role.Text), palette.color(role.Window), palette.color(role.Highlight)
+        key = (text.rgba(), window.rgba(), accent.rgba())
+        if key != self._colors_key:
+            outer = text
+            inner = _mix(text, window, 0.35)
+            base = _mix(window, text, 0.10)
+            self._static_renderer = _themed(_SVG_OUTER, outer, _SVG_INNER, inner, _SVG_BASE, base)
+            self._lit_renderer = _themed(_SVG_OUTER, outer, _SVG_INNER, inner, _SVG_BASE, accent)
+            self._dot, self._track, self._accent = text, inner, accent
+            self._colors_key = key
+        return self._static_renderer, self._lit_renderer, self._dot
+
+    def _layer(self, renderer: QSvgRenderer, size: QSize, ratio: float) -> QPixmap:
+        key = (size.width(), size.height(), ratio, self._colors_key)
+        if key != self._cache_key or self._cache is None:
+            pixmap = QPixmap(size * ratio)
+            pixmap.setDevicePixelRatio(ratio)
+            pixmap.fill(Qt.GlobalColor.transparent)
+            painter = QPainter(pixmap)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            renderer.render(painter, QRectF(self._target(size)))
+            painter.end()
+            self._cache, self._cache_key = pixmap, key
+        return self._cache
+
+    @staticmethod
+    def _target(size: QSize) -> QRectF:
+        scale = min(size.width() / _SVG_W, size.height() / _SVG_H)
+        w, h = _SVG_W * scale, _SVG_H * scale
+        return QRectF((size.width() - w) / 2, (size.height() - h) / 2, w, h)
 
     def draw(self, p: QPainter) -> None:
-        mid, active, text = self._colors()
-        scale = min(self.width() / 400, self.height() / 240)
-        p.translate((self.width() - 400 * scale) / 2, (self.height() - 240 * scale) / 2)
+        static, lit, dot = self._renderers()
+        p.drawPixmap(0, 0, self._layer(static, self.size(), self.devicePixelRatioF()))
+        target = self._target(self.size())
+        scale = target.width() / _SVG_W
+        p.translate(target.topLeft())
         p.scale(scale, scale)
-        pressed = self.state.buttons if self.state else frozenset()
-        outline = QPen(mid, 2)
+        state = self.state
+        triggers = {"l2": state.l2 if state else 0, "r2": state.r2 if state else 0}
+        pressed = lit_parts(state)
+        for name in pressed - triggers.keys():
+            lit.render(p, name, static.boundsOnElement(name))
+        for name, value in triggers.items():
+            # Acende na proporção da pressão; o clique digital (100%) acende por inteiro.
+            p.setOpacity(1.0 if name in pressed else value / 255)
+            if p.opacity() > 0:
+                lit.render(p, name, static.boundsOnElement(name))
+        p.setOpacity(1.0)
+        self._draw_trigger_bars(p, triggers)
 
-        p.setPen(outline)
-        p.setBrush(Qt.BrushStyle.NoBrush)
-        p.drawRoundedRect(QRectF(30, 45, 340, 170), 60, 60)
-
-        # Ombros L1/R1 e gatilhos L2/R2 (preenchidos pelo valor analógico).
-        for name, x in (("l1", 50), ("r1", 270)):
-            p.setBrush(active if name in pressed else Qt.BrushStyle.NoBrush)
-            p.drawRoundedRect(QRectF(x, 25, 80, 14), 6, 6)
-        for name, x, value in (("l2", 50, self.state.l2 if self.state else 0), ("r2", 270, self.state.r2 if self.state else 0)):
-            p.setBrush(Qt.BrushStyle.NoBrush)
-            p.drawRoundedRect(QRectF(x, 4, 80, 16), 6, 6)
-            fill = QColor(active)
-            p.setBrush(fill)
-            p.drawRoundedRect(QRectF(x, 4, 80 * value / 255, 16), 6, 6)
-
-        # Direcional.
-        dpad = self.state.dpad if self.state else None
-        arrows = {"up": (0, -1), "down": (0, 1), "left": (-1, 0), "right": (1, 0)}
-        for name, (dx, dy) in arrows.items():
-            lit = dpad is not None and name in dpad
-            p.setBrush(active if lit else Qt.BrushStyle.NoBrush)
-            p.drawRoundedRect(QRectF(88 + dx * 24 - 10, 100 + dy * 24 - 10, 20, 20), 4, 4)
-
-        # Botões de rosto.
-        font = QFont(p.font())
-        font.setPointSize(11)
-        p.setFont(font)
-        for name, (x, y) in self._FACE_POS.items():
-            lit = name in pressed
-            p.setBrush(active if lit else Qt.BrushStyle.NoBrush)
-            p.setPen(outline)
-            p.drawEllipse(QPointF(x, y), 15, 15)
-            p.setPen(QPen(self.palette().highlightedText().color() if lit else text))
-            p.drawText(QRectF(x - 15, y - 15, 30, 30), Qt.AlignmentFlag.AlignCenter, _FACE[name])
-
-        # Create, Options, PS e Mute.
-        p.setPen(outline)
-        for name, (x, y) in self._SMALL.items():
-            p.setBrush(active if name in pressed else Qt.BrushStyle.NoBrush)
-            p.drawEllipse(QPointF(x, y), 7, 7) if name in ("ps", "mute") else p.drawRoundedRect(QRectF(x - 6, y - 10, 12, 20), 4, 4)
-
-        # Touchpad (clique) com os dedos.
-        p.setBrush(active if "touchpad" in pressed else Qt.BrushStyle.NoBrush)
-        p.drawRoundedRect(QRectF(160, 50, 80, 36), 6, 6)
-        if self.state:
-            p.setBrush(active)
-            for touch in self.state.touches:
-                if touch is not None:
-                    p.drawEllipse(QPointF(160 + 80 * touch.x / TOUCHPAD_WIDTH, 50 + 36 * touch.y / TOUCHPAD_HEIGHT), 4, 4)
-
-        # Sticks (L3/R3 acendem o círculo).
-        for name, cx, (x, y) in (
-            ("l3", 140, (self.state.lx, self.state.ly) if self.state else (128, 128)),
-            ("r3", 260, (self.state.rx, self.state.ry) if self.state else (128, 128)),
-        ):
-            p.setPen(outline)
-            p.setBrush(active if name in pressed else Qt.BrushStyle.NoBrush)
-            p.drawEllipse(QPointF(cx, 170), 24, 24)
+        p.setPen(Qt.PenStyle.NoPen)
+        for name, (cx, cy) in self._STICKS.items():
+            x, y = (state.lx, state.ly) if name == "l3" and state else (state.rx, state.ry) if state else (128, 128)
             px, py = stick_point(x, y)
-            p.setBrush(text)
-            p.drawEllipse(QPointF(cx + px * 16, 170 - py * 16), 6, 6)
+            p.setBrush(dot)
+            p.drawEllipse(QPointF(cx + px * self._STICK_TRAVEL, cy - py * self._STICK_TRAVEL), 5, 5)
+        if state:
+            p.setBrush(dot)  # na cor do texto: continua visível com o touchpad aceso
+            for touch in state.touches:
+                if touch is not None:
+                    x = self._PAD.left() + self._PAD.width() * touch.x / TOUCHPAD_WIDTH
+                    y = self._PAD.top() + self._PAD.height() * touch.y / TOUCHPAD_HEIGHT
+                    p.drawEllipse(QPointF(x, y), 5, 5)
+
+    def _draw_trigger_bars(self, p: QPainter, triggers: dict[str, int]) -> None:
+        """Barra vertical e porcentagem de cada gatilho, ao lado da aba (largura fixa: o texto não tremer)."""
+        font = QFont(p.font())
+        font.setPixelSize(13)
+        p.setFont(font)
+        for name, value in triggers.items():
+            bar = QRectF(self._BAR)
+            if name == "r2":
+                bar.moveLeft(_SVG_W - self._BAR.right())
+            p.setPen(QPen(self._track, 1.6))
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.drawRoundedRect(bar, 4, 4)
+            fill = QRectF(bar.left(), bar.bottom() - bar.height() * value / 255, bar.width(), bar.height() * value / 255)
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(self._accent)
+            p.save()
+            clip = QPainterPath()
+            clip.addRoundedRect(bar, 4, 4)
+            p.setClipPath(clip)
+            p.drawRect(fill)
+            p.restore()
+            p.setPen(self._dot)
+            p.drawText(QRectF(bar.center().x() - 24, bar.bottom() + 3, 48, 16), Qt.AlignmentFlag.AlignCenter, f"{trigger_percent(value)}%")
+
+
+def _shown_key(state: InputState | None) -> tuple | None:
+    """O que o desenho mostra do estado: se for igual, não há por que repintar."""
+    if state is None:
+        return None
+    return (lit_parts(state), state.l2, state.r2, state.lx, state.ly, state.rx, state.ry, state.touches)
+
+
+def _themed(*pairs) -> QSvgRenderer:
+    """O SVG com cada cor literal (par 0, 2, 4…) trocada pela seguinte, numa passada só."""
+    mapping = {pairs[i]: pairs[i + 1].name() for i in range(0, len(pairs), 2)}
+    svg = re.sub("|".join(map(re.escape, mapping)), lambda m: mapping[m.group()], _SVG.read_text())
+    return QSvgRenderer(QByteArray(svg.encode()))
+
+
+def _mix(a: QColor, b: QColor, amount: float) -> QColor:
+    """`a` com `amount` de `b` misturado."""
+    return QColor(*(round(x * (1 - amount) + y * amount) for x, y in zip(a.getRgb()[:3], b.getRgb()[:3])))
 
 
 class StickView(_Canvas):
@@ -126,7 +197,8 @@ class StickView(_Canvas):
         super().__init__(parent)
         self.x, self.y = 128, 128
         self.tracker = RangeTracker()
-        self.setMinimumSize(150, 170)
+        self.setMinimumSize(100, 110)
+        self.setMaximumHeight(150)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
     def set_position(self, x: int, y: int) -> None:

@@ -34,6 +34,13 @@ class ControllerOutlineTest(unittest.TestCase):
     def test_file_matches_the_generator(self):
         self.assertEqual(self.text, _generator().build())
 
+    def test_app_swaps_the_same_literal_colors(self):
+        from dualsense_ultimate_control.testpanel import widgets
+
+        gen = _generator()
+        self.assertEqual((widgets._SVG_OUTER, widgets._SVG_INNER, widgets._SVG_BASE), (gen.OUTER, gen.INNER, gen.BASE))
+        self.assertEqual((widgets._SVG_W, widgets._SVG_H), (gen.W, gen.H))
+
     def test_is_small_and_valid(self):
         self.assertLess(SVG.stat().st_size, 16 * 1024)
         self.assertTrue(self.renderer.isValid())

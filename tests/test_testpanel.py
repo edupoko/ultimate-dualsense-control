@@ -4,10 +4,14 @@ import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import QPoint
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication
 
 from dualsense_ultimate_control.ds5.reports import InputState, Touch
-from dualsense_ultimate_control.testpanel.model import ImuHistory, peak_level, RangeTracker, normalize_stick, stick_point
+from dualsense_ultimate_control.testpanel.model import (
+    ImuHistory, RangeTracker, lit_parts, normalize_stick, peak_level, stick_point, trigger_percent,
+)
 from dualsense_ultimate_control.testpanel.widgets import ControllerView, ImuPlot, StickView, TouchpadView
 
 
@@ -19,6 +23,78 @@ def make_state(**overrides) -> InputState:
     )
     fields.update(overrides)
     return InputState(**fields)
+
+
+class ControllerArtTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_lit_parts_follow_buttons_and_dpad(self):
+        self.assertEqual(lit_parts(None), frozenset())
+        self.assertEqual(lit_parts(make_state()), frozenset())
+        state = make_state(buttons=frozenset({"cross", "l1", "fn_left"}), dpad="down_left")
+        self.assertEqual(lit_parts(state), {"cross", "l1", "dpad_down", "dpad_left"})
+
+    def test_trigger_percent(self):
+        self.assertEqual([trigger_percent(v) for v in (0, 128, 255, 300, -5)], [0, 50, 100, 100, 0])
+
+    def test_resting_state_paints_no_lit_piece_and_pressing_does(self):
+        view = ControllerView()
+        view.resize(529, 403)
+        view.set_state(make_state())
+        rest = view.grab().toImage()
+        accent = view.palette().color(view.palette().ColorRole.Highlight)
+        cross = QPoint(int(view._static_renderer.boundsOnElement("cross").center().x()),
+                       int(view._static_renderer.boundsOnElement("cross").center().y()))
+        self.assertNotEqual(rest.pixelColor(cross), accent)
+        view.set_state(make_state(buttons=frozenset({"cross"})))
+        self.assertEqual(view.grab().toImage().pixelColor(cross), accent)
+
+    def test_trigger_opacity_grows_with_pressure(self):
+        view = ControllerView()
+        view.resize(529, 403)
+        view.set_state(make_state())
+        view.grab()  # cria os renderizadores
+        bounds = view._static_renderer.boundsOnElement("l2")
+        point = QPoint(int(bounds.center().x()), int(bounds.center().y()))
+        reds = []
+        for value in (0, 128, 255):
+            view.set_state(make_state(l2=value))
+            reds.append(view.grab().toImage().pixelColor(point).red())
+        accent = view.palette().color(view.palette().ColorRole.Highlight).red()
+        self.assertEqual(reds[2], accent)
+        self.assertNotEqual(reds[0], reds[1])
+        self.assertNotEqual(reds[1], reds[2])
+        self.assertEqual(view.accessibleDescription(), "L2 100%, R2 0%")
+
+    def test_repaints_only_when_something_shown_changes(self):
+        view = ControllerView()
+        calls = []
+        view.update = lambda *a: calls.append(1)
+        view.set_state(make_state())
+        view.set_state(make_state(sequence=1, gyro=(5, 5, 5), l2=0))  # nada visível mudou
+        self.assertEqual(len(calls), 1)
+        view.set_state(make_state(lx=200))
+        view.set_state(make_state(lx=200, buttons=frozenset({"ps"})))
+        self.assertEqual(len(calls), 3)
+
+    def test_cache_is_rebuilt_on_resize_and_palette_change(self):
+        view = ControllerView()
+        view.resize(300, 200)
+        view.grab()
+        first = view._cache
+        view.grab()
+        self.assertIs(view._cache, first)
+        view.resize(400, 260)
+        view.grab()
+        self.assertIsNot(view._cache, first)
+        second = view._cache
+        palette = view.palette()
+        palette.setColor(palette.ColorRole.Text, QColor("#123456"))
+        view.setPalette(palette)
+        view.grab()
+        self.assertIsNot(view._cache, second)
 
 
 class ModelTest(unittest.TestCase):

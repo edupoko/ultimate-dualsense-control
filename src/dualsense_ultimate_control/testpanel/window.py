@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QHideEvent, QShowEvent
-from PySide6.QtWidgets import QGroupBox, QTabWidget, QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QGroupBox, QTabWidget, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from .. import i18n
 from ..ds5.reports import InputState
@@ -56,19 +56,13 @@ class TestWindow(QWidget):
         i18n.bind(lambda text: tabs.setTabText(4, text), "quick.title")
 
         self._view = ControllerView()
-        layout.addWidget(self._view, 2)
+        layout.addWidget(self._view, 4)
 
         sticks = QHBoxLayout()
         self._sticks = (StickView(), StickView())
-        self._triggers = (QProgressBar(), QProgressBar())
-        for stick, bar, label in zip(self._sticks, self._triggers, ("L", "R")):
-            column = QVBoxLayout()
-            column.addWidget(stick, 1)
-            bar.setRange(0, 255)
-            bar.setFormat(f"{label}2  %v")
-            column.addWidget(bar)
-            sticks.addLayout(column)
-        layout.addLayout(sticks, 3)
+        for stick in self._sticks:
+            sticks.addWidget(stick, 1)
+        layout.addLayout(sticks, 1)
 
         reset = QPushButton()
         i18n.bind(reset.setText, "test.reset_range")
@@ -157,8 +151,6 @@ class TestWindow(QWidget):
         self._view.set_state(state)
         self._sticks[0].set_position(state.lx, state.ly)
         self._sticks[1].set_position(state.rx, state.ry)
-        self._triggers[0].setValue(state.l2)
-        self._triggers[1].setValue(state.r2)
         self._outputs.mic_meter.set_mute_pressed("mute" in state.buttons)
         self._calibration.on_state(state)
         self._gyro_panel.on_state(state)

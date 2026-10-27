@@ -72,3 +72,25 @@ def peak_level(samples: bytes, float_samples: bool = False) -> float:
         return 0.0
     peak = max(max(values), -min(values))
     return min(1.0, peak if float_samples else peak / 32768)
+
+
+_DPAD_PARTS = {
+    "up": ("dpad_up",), "right": ("dpad_right",), "down": ("dpad_down",), "left": ("dpad_left",),
+    "up_right": ("dpad_up", "dpad_right"), "down_right": ("dpad_down", "dpad_right"),
+    "down_left": ("dpad_down", "dpad_left"), "up_left": ("dpad_up", "dpad_left"),
+}
+_DRAWN_BUTTONS = frozenset(
+    "l1 r1 l2 r2 triangle circle cross square l3 r3 create options ps mute touchpad".split()
+)
+
+
+def lit_parts(state) -> frozenset[str]:
+    """Ids das peças do desenho que devem aparecer acesas (sem estado, nenhuma)."""
+    if state is None:
+        return frozenset()
+    return (_DRAWN_BUTTONS & state.buttons) | frozenset(_DPAD_PARTS.get(state.dpad, ()))
+
+
+def trigger_percent(value: int) -> int:
+    """Pressão de um gatilho (0..255) em porcentagem inteira."""
+    return round(max(0, min(255, value)) * 100 / 255)
