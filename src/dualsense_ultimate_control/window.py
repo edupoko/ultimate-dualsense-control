@@ -14,7 +14,6 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
-    QListWidget,
     QListWidgetItem,
     QPushButton,
     QScrollArea,
@@ -31,6 +30,7 @@ from .logview import LogWindow
 from .permissions import RuleInstaller
 from .profiles_dialog import ProfilesDialog
 from .service import LedService
+from .theme import SideNav
 from .testpanel.window import TestWindow
 from .widgets import (
     AutoPlayersRow,
@@ -88,7 +88,7 @@ class MainWindow(QWidget):
 
         # Tudo abre dentro desta janela: a lista à esquerda troca a página da direita.
         root = QHBoxLayout(self)
-        self._nav = QListWidget()
+        self._nav = SideNav()
         self._nav.setFixedWidth(160)
         root.addWidget(self._nav)
         column = QVBoxLayout()

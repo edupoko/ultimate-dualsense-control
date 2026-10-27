@@ -20,7 +20,7 @@ from PySide6.QtCore import QCoreApplication, QThread, QTimer, qVersion
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 
-from . import __version__, kdetheme, logs
+from . import __version__, kdetheme, logs, theme
 from .emulation import EmulationProcess
 from .i18n import tr
 from .migrate import migrate_legacy
@@ -76,10 +76,13 @@ def main(argv: list[str] | None = None) -> int:
         os.environ["QT_QPA_PLATFORM"] = "xcb"
 
     # Aparência do KDE (Breeze, cores e fontes do sistema) em vez do estilo genérico do Qt.
-    if kdetheme.enable(qVersion()):
+    kde_active = kdetheme.enable(qVersion())
+    if kde_active:
         logging.info("Usando o tema do KDE.")
 
     app = QApplication([sys.argv[0], *qt_args])
+    if theme.apply(app, kde_active):
+        logging.info("Usando o tema próprio (Fusion).")
     logging.info("Iniciando %s %s (Qt %s, plataforma %s)", "DualSense Ultimate Control", __version__, qVersion(), app.platformName())
     app.setApplicationName("DualSense Ultimate Control")
     app.setDesktopFileName("dualsense-ultimate-control")
