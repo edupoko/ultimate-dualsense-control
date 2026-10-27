@@ -37,7 +37,7 @@ class ControllerOutlineTest(unittest.TestCase):
     def test_is_small_and_valid(self):
         self.assertLess(SVG.stat().st_size, 16 * 1024)
         self.assertTrue(self.renderer.isValid())
-        self.assertEqual(self.renderer.viewBoxF(), QRectF(0, 0, 589, 414))
+        self.assertEqual(self.renderer.viewBoxF(), QRectF(0, 0, 529, 403))
 
     def test_every_piece_has_an_id_inside_the_view_box(self):
         box = self.renderer.viewBoxF()
@@ -49,30 +49,34 @@ class ControllerOutlineTest(unittest.TestCase):
                 self.assertTrue(box.contains(bounds))
 
     def test_pieces_do_not_overlap(self):
-        bounds = {name: self.renderer.boundsOnElement(name) for name in PIECES}
-        for i, a in enumerate(PIECES):
-            for b in PIECES[i + 1 :]:
-                if a.startswith("dpad_") and b.startswith("dpad_"):
-                    continue  # as pontas se encaixam no centro: os retângulos se cruzam, as teclas não
-                with self.subTest(a=a, b=b):
-                    self.assertFalse(bounds[a].intersects(bounds[b]))
+        # Pinta cada peça sozinha e procura pixel tocado por duas (os retângulos podem se cruzar, as peças não).
+        owner: dict[tuple[int, int], str] = {}
+        for name in PIECES:
+            image = QImage(529, 403, QImage.Format.Format_ARGB32)
+            image.fill(0)
+            painter = QPainter(image)
+            self.renderer.render(painter, name, self.renderer.boundsOnElement(name))
+            painter.end()
+            box = self.renderer.boundsOnElement(name).toAlignedRect().adjusted(-2, -2, 2, 2)
+            for x in range(max(box.left(), 0), min(box.right(), 528) + 1):
+                for y in range(max(box.top(), 0), min(box.bottom(), 402) + 1):
+                    if image.pixelColor(x, y).alpha() > 128:
+                        other = owner.setdefault((x, y), name)
+                        self.assertEqual(other, name, f"{name} encosta em {other} em {x},{y}")
 
-    def test_pieces_are_transparent_until_lit(self):
+    def test_lighting_a_piece_swaps_its_base_color(self):
         gen = _generator()
-        self.assertEqual(self.text.count('fill-opacity="0"'), len(PIECES))
-        lit = QSvgRenderer(QByteArray(self.text.replace('fill-opacity="0"', 'fill-opacity="1"').encode()))
+        self.assertEqual(self.text.count(f'fill="{gen.BASE}"'), len(PIECES))
+        lit = QSvgRenderer(QByteArray(self.text.replace(f'fill="{gen.BASE}"', 'fill="#ff0000"').encode()))
         center = self.renderer.boundsOnElement("cross").center()
-        for renderer, expected in ((self.renderer, False), (lit, True)):
-            image = QImage(589, 414, QImage.Format.Format_ARGB32)
+        for renderer, expected in ((self.renderer, QColor(gen.BASE)), (lit, QColor("#ff0000"))):
+            image = QImage(529, 403, QImage.Format.Format_ARGB32)
             image.fill(0)
             painter = QPainter(image)
             renderer.render(painter)
             painter.end()
-            # Entre o centro do botão e o símbolo ✕ há um ponto só de preenchimento.
-            color = image.pixelColor(int(center.x()), int(center.y() - 9))
-            with self.subTest(lit=expected):
-                self.assertEqual(color == QColor(gen.FILL), expected)
-
+            with self.subTest(color=expected.name()):
+                self.assertEqual(image.pixelColor(int(center.x()), int(center.y())), expected)
 
 if __name__ == "__main__":
     unittest.main()
