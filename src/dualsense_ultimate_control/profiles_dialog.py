@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
@@ -16,7 +17,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QListWidget,
-    QMessageBox,
     QPushButton,
     QScrollArea,
     QSpinBox,
@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 from . import i18n
+from .confirm import ConfirmBar
 from .emulator.config import default_profiles_dir
 from .emulator.mapping import (
     BUTTON_SOURCES,
@@ -407,6 +408,8 @@ class ProfilesDialog(QWidget):
         self._dirty = False
 
         root = QVBoxLayout(self)
+        self._bar = ConfirmBar()
+        root.addWidget(self._bar)
         default_row = QHBoxLayout()
         default_label = QLabel()
         i18n.bind(default_label.setText, "profiles.default")
@@ -498,10 +501,16 @@ class ProfilesDialog(QWidget):
             return
         if item.text() == self._current:
             return
-        if not self._confirm_discard():
-            self._reload(select=self._current)
+        name = item.text()
+        if self._dirty:
+            self._reload(select=self._current)  # a seleção só muda se o usuário aceitar descartar
+            self._ask_discard(lambda: self._open_profile(name))
             return
-        profile = self._store.get(item.text())
+        self._open_profile(name)
+
+    def _open_profile(self, name: str) -> None:
+        self._reload(select=name)
+        profile = self._store.get(name)
         if profile is not None:
             self._show(profile, profile.name)
 
@@ -514,30 +523,48 @@ class ProfilesDialog(QWidget):
     def _mark_dirty(self) -> None:
         self._dirty = True
 
-    def can_leave(self) -> bool:
-        """Pode sair da página? Pergunta antes de descartar uma edição não salva."""
-        return self._confirm_discard()
+    def can_leave(self, proceed: Callable[[], None] | None = None) -> bool:
+        """Pode sair da página? Com edição não salva, pergunta na própria página.
 
-    def _back(self) -> None:
-        if self.can_leave():
-            self.back_requested.emit()
-
-    def _confirm_discard(self) -> bool:
+        A pergunta não bloqueia: devolve False e, se o usuário aceitar descartar, chama `proceed`."""
         if not self._dirty:
             return True
-        answer = QMessageBox.question(self, tr("profiles.title"), tr("profiles.discard"))
-        return answer == QMessageBox.StandardButton.Yes
+        if proceed is not None:
+            self._ask_discard(proceed)
+        return False
+
+    def _back(self) -> None:
+        if self.can_leave(self.back_requested.emit):
+            self.back_requested.emit()
+
+    def _ask_discard(self, proceed: Callable[[], None]) -> None:
+        """Pergunta se pode descartar a edição e, se sim, faz `proceed` já sem ela."""
+        def discard() -> None:
+            self._dirty = False
+            proceed()
+
+        self._bar.ask(tr("profiles.discard"), discard)
+
+    def _guard(self, action: Callable[[], None]) -> None:
+        """Faz `action` já, ou depois de o usuário aceitar descartar a edição não salva."""
+        if self._dirty:
+            self._ask_discard(action)
+        else:
+            action()
 
     # --- ações
     def _new(self) -> None:
-        if self._confirm_discard():
-            self._list.clearSelection()
-            self._show(Profile(name=self._free_name(tr("profiles.new_name"))), None)
-            self._dirty = True
+        self._guard(self._start_new)
+
+    def _start_new(self) -> None:
+        self._list.clearSelection()
+        self._show(Profile(name=self._free_name(tr("profiles.new_name"))), None)
+        self._dirty = True
 
     def _duplicate(self) -> None:
-        if not self._confirm_discard():
-            return
+        self._guard(self._start_duplicate)
+
+    def _start_duplicate(self) -> None:
         profile = self._editor.profile()
         profile.name = self._free_name(profile.name or tr("profiles.new_name"))
         profile.apps, profile.steam_appids = [], []  # os mesmos aplicativos nos dois perfis brigariam entre si
@@ -555,7 +582,10 @@ class ProfilesDialog(QWidget):
     def _delete(self) -> None:
         if self._current is None:
             return
-        if QMessageBox.question(self, tr("profiles.title"), tr("profiles.confirm_delete", name=self._current)) != QMessageBox.StandardButton.Yes:
+        self._bar.ask(tr("profiles.confirm_delete", name=self._current), self._delete_current)
+
+    def _delete_current(self) -> None:
+        if self._current is None:
             return
         self._store.delete(self._current)
         if self._service.default_profile == self._current:
@@ -598,19 +628,20 @@ class ProfilesDialog(QWidget):
         return ""
 
     def _import(self) -> None:
-        if not self._confirm_discard():
-            return
+        self._guard(self._pick_import)
+
+    def _pick_import(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, tr("profiles.import"), "", "JSON (*.json)")
-        if not path:
-            return
+        if path:
+            self._import_file(path)
+
+    def _import_file(self, path: str, overwrite: bool = False) -> None:
         try:
-            try:
-                profile = self._store.import_file(Path(path))
-            except ProfileExists as exists:
-                question = tr("profiles.confirm_overwrite", name=exists.existing)
-                if QMessageBox.question(self, tr("profiles.title"), question) != QMessageBox.StandardButton.Yes:
-                    return
-                profile = self._store.import_file(Path(path), overwrite=True)
+            profile = self._store.import_file(Path(path), overwrite=overwrite)
+        except ProfileExists as exists:
+            question = tr("profiles.confirm_overwrite", name=exists.existing)
+            self._bar.ask(question, lambda: self._import_file(path, overwrite=True))
+            return
         except (OSError, ValueError) as error:
             self._status.setText(tr("profiles.import_failed", error=str(error)))
             return

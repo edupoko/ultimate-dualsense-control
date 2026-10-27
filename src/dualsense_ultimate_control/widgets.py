@@ -8,9 +8,7 @@ from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, QSize, Qt, QUrl
 from PySide6.QtGui import QColor, QDesktopServices, QFontMetrics, QGuiApplication, QLinearGradient, QMouseEvent, QPainter, QPaintEvent, QPen
 from PySide6.QtWidgets import (
     QAbstractButton,
-    QColorDialog,
     QComboBox,
-    QMessageBox,
     QPushButton,
     QGridLayout,
     QHBoxLayout,
@@ -25,6 +23,7 @@ from PySide6.QtWidgets import (
 import logging
 
 from . import autostart, bluetooth, i18n
+from .confirm import HelpPanel
 from .colors import PRESETS
 from .i18n import tr
 from .translations import STRINGS
@@ -40,11 +39,9 @@ HUE_MAX = 359
 ROW_MARGINS = (28, 3, 12, 3)
 
 
-def pick_color(service: LedService, parent: QWidget | None = None) -> None:
-    """Abre o seletor de cores; a cor escolhida é aplicada e guardada no seletor rápido."""
-    chosen = QColorDialog.getColor(QColor(*service.settings.color), parent, tr("color.dialog_title"))
-    if chosen.isValid():
-        service.add_custom_color((chosen.red(), chosen.green(), chosen.blue()))
+def save_current_color(service: LedService) -> None:
+    """Guarda a cor atual (a dos sliders) no seletor rápido."""
+    service.add_custom_color(tuple(service.settings.color))
 
 
 # Abre a janela de configurações da Steam na página de controles.
@@ -55,41 +52,34 @@ def open_steam_controller_settings() -> None:
     QDesktopServices.openUrl(QUrl(STEAM_CONTROLLER_SETTINGS_URL))
 
 
-def show_steam_help(service: LedService, parent: QWidget | None = None) -> None:
+def steam_help_panel(service: LedService) -> HelpPanel:
     """Explica a disputa com a Steam e oferece mandar de novo as cores do app."""
-    box = QMessageBox(parent)
-    box.setIcon(QMessageBox.Icon.Warning)
-    box.setWindowTitle(tr("steam.title"))
-    box.setText(tr("steam.text"))
     help_text = tr("steam.help")
     uid = service.selected_uid
     if uid is not None and service.emulation_for(uid):
         help_text += tr("steam.emulation_hint")
-    box.setInformativeText(help_text)
-    steam_settings = box.addButton(tr("steam.open_settings"), QMessageBox.ButtonRole.ActionRole)
-    reapply = box.addButton(tr("steam.reapply"), QMessageBox.ButtonRole.ActionRole)
-    box.addButton(QMessageBox.StandardButton.Close)
-    box.exec()
-    if box.clickedButton() is reapply:
-        service.reapply_selected()
-    elif box.clickedButton() is steam_settings:
-        open_steam_controller_settings()
+    return HelpPanel(
+        tr("steam.title"),
+        tr("steam.text"),
+        help_text,
+        [(tr("steam.open_settings"), open_steam_controller_settings), (tr("steam.reapply"), service.reapply_selected)],
+    )
 
 
-def show_bluetooth_help(service: LedService, parent: QWidget | None = None) -> None:
+def bluetooth_help_panel(service: LedService) -> HelpPanel:
     """Explica o controle Bluetooth "conectado" que o sistema não registrou e oferece desconectá-lo."""
-    addresses = service.unregistered_bluetooth
-    box = QMessageBox(parent)
-    box.setIcon(QMessageBox.Icon.Warning)
-    box.setWindowTitle(tr("bluetooth.title"))
-    box.setText(tr("bluetooth.text", addresses=", ".join(a.upper() for a in addresses)))
-    box.setInformativeText(tr("bluetooth.help"))
-    disconnect = box.addButton(tr("bluetooth.disconnect"), QMessageBox.ButtonRole.ActionRole)
-    box.addButton(QMessageBox.StandardButton.Close)
-    box.exec()
-    if box.clickedButton() is disconnect:
+    addresses = list(service.unregistered_bluetooth)
+
+    def disconnect() -> None:
         for address in addresses:
             bluetooth.disconnect(address)
+
+    return HelpPanel(
+        tr("bluetooth.title"),
+        tr("bluetooth.text", addresses=", ".join(a.upper() for a in addresses)),
+        tr("bluetooth.help"),
+        [(tr("bluetooth.disconnect"), disconnect)],
+    )
 
 
 def tray_corner_position(size: QSize, screen: QRect, available: QRect, margin: int = TRAY_MARGIN) -> QPoint:
@@ -396,7 +386,7 @@ class ColorPalette(QWidget):
             f" border-radius: {self.SWATCH // 2}px; font-weight: bold; }}"
             "QToolButton:hover { border: 2px solid palette(highlight); }"
         )
-        add.clicked.connect(lambda: pick_color(self._service))
+        add.clicked.connect(lambda: save_current_color(self._service))
         index = len(colors)
         self._grid.addWidget(add, index // self.COLUMNS, index % self.COLUMNS, Qt.AlignmentFlag.AlignCenter)
 

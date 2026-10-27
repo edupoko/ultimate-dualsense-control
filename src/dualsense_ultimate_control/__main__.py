@@ -18,7 +18,7 @@ from pathlib import Path
 import shiboken6
 from PySide6.QtCore import QCoreApplication, QThread, QTimer, qVersion
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
-from PySide6.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon
+from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 
 from . import __version__, kdetheme, logs
 from .emulation import EmulationProcess
@@ -129,7 +129,7 @@ def main(argv: list[str] | None = None) -> int:
             ensure_window()
 
     if tray_available:
-        tray = TrayIcon(service, show_window, quit_app, emulation)
+        tray = TrayIcon(service, show_window, quit_app, emulation, show_help=lambda kind: ensure_window().show_help(kind))
         tray.show()
     else:
         logging.warning("Bandeja do sistema indisponível; usando só a janela.")
@@ -139,7 +139,7 @@ def main(argv: list[str] | None = None) -> int:
         service.set_emulation(False)
         text = tr("emulation.failed", detail=detail)
         if window is not None and window.isVisible():
-            QMessageBox.warning(window, tr("emulation.failed_title"), text)
+            window.show_notice(f"{tr('emulation.failed_title')}: {text}")
         elif tray is not None:
             tray.show_message(tr("emulation.failed_title"), text)
 

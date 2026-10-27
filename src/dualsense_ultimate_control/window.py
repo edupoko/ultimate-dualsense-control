@@ -16,7 +16,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QListWidget,
     QListWidgetItem,
-    QMessageBox,
     QPushButton,
     QScrollArea,
     QStackedWidget,
@@ -26,6 +25,7 @@ from PySide6.QtWidgets import (
 
 from . import i18n
 from .i18n import tr
+from .confirm import ConfirmBar
 from .emulation import EmulationProcess
 from .logview import LogWindow
 from .permissions import RuleInstaller
@@ -45,9 +45,8 @@ from .widgets import (
     LogsRow,
     MuteLedRow,
     PlayerRow,
-    pick_color,
-    show_bluetooth_help,
-    show_steam_help,
+    bluetooth_help_panel,
+    steam_help_panel,
 )
 
 ICON_PATH = Path(__file__).with_name("icons") / "dualsense-ultimate-control.svg"
@@ -94,6 +93,9 @@ class MainWindow(QWidget):
         root.addWidget(self._nav)
         column = QVBoxLayout()
         root.addLayout(column, 1)
+        # Perguntas e avisos de qualquer página (ex.: permissão) aparecem aqui, sem caixa de diálogo.
+        self._bar = ConfirmBar()
+        column.addWidget(self._bar)
         self._stack = QStackedWidget()
         column.addWidget(self._stack, 1)
 
@@ -102,6 +104,7 @@ class MainWindow(QWidget):
         self._pages: dict[str, QWidget] = {}
         self._scrolls: dict[str, QScrollArea] = {}
         self._current: str | None = None
+        self._help_slots: dict[str, QVBoxLayout] = {}
         for key in self._page_keys:
             item = QListWidgetItem()
             self._nav.addItem(item)
@@ -165,44 +168,74 @@ class MainWindow(QWidget):
         self._sync()
         self._on_status(service.status)
 
-    def _build_steam_notice(self) -> QFrame:
-        self._steam_notice = QFrame()
-        self._steam_notice.setFrameShape(QFrame.Shape.StyledPanel)
-        layout = QHBoxLayout(self._steam_notice)
+    def _build_notice(self, text_key: str, kind: str) -> tuple[QFrame, QWidget]:
+        """Aviso com "Como resolver…"; a explicação abre logo abaixo dele, dentro da página."""
+        frame = QFrame()
+        frame.setFrameShape(QFrame.Shape.StyledPanel)
+        layout = QHBoxLayout(frame)
         text = QLabel()
-        i18n.bind(text.setText, "window.steam_notice")
+        i18n.bind(text.setText, text_key)
         text.setWordWrap(True)
         layout.addWidget(text, 1)
         help_button = QPushButton()
         i18n.bind(help_button.setText, "window.how_to_fix")
-        help_button.clicked.connect(lambda: show_steam_help(self._service, self))
+        help_button.clicked.connect(lambda: self._open_help(kind))
         layout.addWidget(help_button)
+        holder = QWidget()
+        holder_layout = QVBoxLayout(holder)
+        holder_layout.setContentsMargins(0, 0, 0, 0)
+        holder_layout.addWidget(frame)
+        slot = QVBoxLayout()
+        holder_layout.addLayout(slot)
+        self._help_slots[kind] = slot
+        return frame, holder
+
+    def _build_steam_notice(self) -> QWidget:
+        self._steam_notice, holder = self._build_notice("window.steam_notice", "steam")
         self._service.steam_changed.connect(self._sync_steam)
         self._service.controllers_changed.connect(self._sync_steam)
         self._sync_steam()
-        return self._steam_notice
+        return holder
 
-    def _build_bluetooth_notice(self) -> QFrame:
-        self._bluetooth_notice = QFrame()
-        self._bluetooth_notice.setFrameShape(QFrame.Shape.StyledPanel)
-        layout = QHBoxLayout(self._bluetooth_notice)
-        text = QLabel()
-        i18n.bind(text.setText, "window.bluetooth_notice")
-        text.setWordWrap(True)
-        layout.addWidget(text, 1)
-        help_button = QPushButton()
-        i18n.bind(help_button.setText, "window.how_to_fix")
-        help_button.clicked.connect(lambda: show_bluetooth_help(self._service, self))
-        layout.addWidget(help_button)
+    def _build_bluetooth_notice(self) -> QWidget:
+        self._bluetooth_notice, holder = self._build_notice("window.bluetooth_notice", "bluetooth")
         self._service.bluetooth_changed.connect(self._sync_bluetooth)
         self._sync_bluetooth()
-        return self._bluetooth_notice
+        return holder
+
+    def _close_help(self, kind: str) -> None:
+        slot = self._help_slots[kind]
+        while slot.count():
+            item = slot.takeAt(0)
+            if item.widget() is not None:
+                item.widget().close_panel()
+
+    def _open_help(self, kind: str) -> None:
+        self._close_help(kind)
+        panel = steam_help_panel(self._service) if kind == "steam" else bluetooth_help_panel(self._service)
+        self._help_slots[kind].addWidget(panel)
+
+    def show_help(self, kind: str) -> None:
+        """Abre a explicação da Steam ou do Bluetooth na página dos controles (usado pela bandeja)."""
+        self.show_window()
+        if self.set_page("controls"):
+            self._open_help(kind)
+
+    def show_notice(self, text: str) -> None:
+        self.show_window()
+        self._bar.notify(text)
 
     def _sync_bluetooth(self) -> None:
-        self._bluetooth_notice.setVisible(bool(self._service.unregistered_bluetooth))
+        visible = bool(self._service.unregistered_bluetooth)
+        self._bluetooth_notice.setVisible(visible)
+        if not visible:
+            self._close_help("bluetooth")
 
     def _sync_steam(self) -> None:
-        self._steam_notice.setVisible(self._service.steam_controls_selected)
+        visible = self._service.steam_controls_selected
+        self._steam_notice.setVisible(visible)
+        if not visible:
+            self._close_help("steam")
 
     def _build_permission_banner(self) -> QFrame:
         self._banner = QFrame()
@@ -236,12 +269,8 @@ class MainWindow(QWidget):
         self._swatch = QFrame()
         self._swatch.setFixedSize(56, 32)
         self._color_label = QLabel()
-        choose = QPushButton()
-        i18n.bind(choose.setText, "window.choose_color")
-        choose.clicked.connect(lambda: pick_color(self._service, self))
         color_row.addWidget(self._swatch)
         color_row.addWidget(self._color_label, 1)
-        color_row.addWidget(choose)
         layout.addLayout(color_row)
 
         layout.addWidget(ColorPalette(self._service))
@@ -302,7 +331,7 @@ class MainWindow(QWidget):
         `force` pula a pergunta da página atual (ela mesma já perguntou ao ser fechada)."""
         if key not in self._page_keys:
             return False
-        if not force and self._current not in (None, key) and not self._can_leave(self._current):
+        if not force and self._current not in (None, key) and not self._can_leave(self._current, key):
             self._select_nav(self._current)
             return False
         if key not in self._pages:
@@ -339,9 +368,12 @@ class MainWindow(QWidget):
         self._scrolls[key] = scroll
         self._stack.addWidget(scroll)
 
-    def _can_leave(self, key: str) -> bool:
+    def _can_leave(self, key: str, target: str) -> bool:
+        """Se a página tem edição pendente, ela pergunta (na própria página) e segue para `target` se o usuário aceitar."""
         page = self._pages.get(key)
-        return page.can_leave() if isinstance(page, ProfilesDialog) else True
+        if isinstance(page, ProfilesDialog):
+            return page.can_leave(lambda: self.set_page(target, force=True))
+        return True
 
     def _on_nav(self, row: int) -> None:
         # Se a página atual recusar a saída, set_page devolve a seleção para ela.
@@ -357,8 +389,10 @@ class MainWindow(QWidget):
         if not self._service.needs_permission or self._installer.running:
             return
         self.show_window()
-        answer = QMessageBox.question(self, tr("window.permission_title"), tr("window.permission_text"))
-        if answer == QMessageBox.StandardButton.Yes:
+        self._bar.ask(tr("window.permission_text"), self._accept_permission)
+
+    def _accept_permission(self) -> None:
+        if self._service.needs_permission:  # pode ter sido liberada pelo botão do aviso enquanto a pergunta esperava
             self._request_permission()
 
     def _request_permission(self) -> None:

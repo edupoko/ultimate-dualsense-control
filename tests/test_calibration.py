@@ -170,7 +170,7 @@ class PanelTest(unittest.TestCase):
         self.history = root / "h.json"
         self.panel = CalibrationPanel(service, self.history)
         self.answer = True
-        self.panel._confirm = lambda key: self.answer
+        self.panel._confirm = lambda key, proceed: proceed() if self.answer else None
         self.device = FakeController()
 
     def test_buttons_disabled_without_usb(self):
@@ -185,6 +185,16 @@ class PanelTest(unittest.TestCase):
         self.answer = False
         self.panel.run_center()
         self.assertEqual(self.device.calls, [])
+
+    def test_real_confirmation_bar_waits_for_the_answer(self):
+        del self.panel._confirm  # volta ao método real, que pergunta na faixa do painel
+        self.panel.set_device(self.device)
+        self.panel.run_center()
+        self.assertFalse(self.panel._bar.isHidden())
+        self.assertEqual(self.device.calls, [])  # nada escrito antes de responder
+        self.panel._bar._no.click()
+        self.assertEqual(self.device.calls, [])
+        self.assertTrue(self.panel._bar.isHidden())
 
     def _no_delay(self):
         patcher = unittest.mock.patch.object(cal, "SAMPLE_DELAY_S", 0)

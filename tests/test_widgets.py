@@ -108,6 +108,12 @@ class ColorPaletteTest(unittest.TestCase):
         self.assertEqual(len(self.names()), len(PRESETS) + 2)
         self.assertIn("#0AC81E", self.names())
 
+    def test_plus_button_saves_the_current_color_without_a_dialog(self):
+        self.service.set_color((10, 200, 30))
+        next(b for b in self.palette.findChildren(QToolButton) if b.accessibleName() == "Nova cor").click()
+        self.assertIn((10, 200, 30), [tuple(c) for c in self.service.custom_colors])
+        self.assertIn("#0AC81E", self.names())
+
     def test_clicking_a_swatch_sets_the_color(self):
         self.service.add_custom_color((10, 200, 30))
         button = next(b for b in self.palette.findChildren(QToolButton) if b.accessibleName() == "Vermelho")

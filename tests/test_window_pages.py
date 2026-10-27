@@ -7,7 +7,7 @@ from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QApplication
 
 from dualsense_ultimate_control.emulation import EmulationProcess
 from dualsense_ultimate_control.logview import LogWindow
@@ -113,18 +113,56 @@ class WindowPagesTest(unittest.TestCase):
             window.hide()  # janela para a bandeja
             self.assertIsNone(test._device)
 
-    def test_pending_profile_edit_can_keep_the_page(self):
+    def test_pending_profile_edit_asks_inside_the_page(self):
         window = self._window()
         window.show_profiles()
-        window.page("profiles")._mark_dirty()
-        with mock.patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.No):
-            window._nav.setCurrentRow(0)
-        self.assertEqual(window.current_page(), "profiles")
+        profiles = window.page("profiles")
+        profiles._mark_dirty()
+        window._nav.setCurrentRow(0)
+        self.assertEqual(window.current_page(), "profiles")  # esperando a resposta
         self.assertEqual(window._nav.currentRow(), window._page_keys.index("profiles"))
-        with mock.patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes) as question:
-            window.page("profiles")._back()
-        self.assertEqual(question.call_count, 1)  # o "Voltar" pergunta uma vez só
+        self.assertTrue(profiles._bar.isVisible())
+        profiles._bar._no.click()
+        self.assertEqual(window.current_page(), "profiles")
+        window._nav.setCurrentRow(0)
+        profiles._bar._yes.click()  # aceitou descartar: segue para onde queria ir
         self.assertEqual(window.current_page(), "controls")
+        self.assertEqual(window._nav.currentRow(), 0)
+
+    def test_back_button_asks_once_then_goes_back(self):
+        window = self._window()
+        window.show_profiles()
+        profiles = window.page("profiles")
+        profiles._mark_dirty()
+        profiles._back()
+        self.assertEqual(window.current_page(), "profiles")
+        profiles._bar._yes.click()
+        self.assertEqual(window.current_page(), "controls")
+
+    def test_permission_question_uses_the_window_bar(self):
+        window = self._window()
+        before = set(self._visible_windows())
+        with mock.patch.object(type(self.service), "needs_permission", new_callable=mock.PropertyMock, return_value=True), \
+                mock.patch.object(window._installer, "start") as start:
+            window._offer_permission()
+            self.assertTrue(window._bar.isVisible())
+            self.assertEqual(set(self._visible_windows()), before)  # sem caixa de diálogo
+            window._bar._yes.click()
+        start.assert_called_once()
+        self.assertFalse(window._bar.isVisible())
+
+    def test_help_opens_inside_the_controls_page(self):
+        window = self._window()
+        window.show_logs()
+        before = set(self._visible_windows())
+        window.show_help("steam")
+        self.assertEqual(window.current_page(), "controls")
+        self.assertEqual(window._help_slots["steam"].count(), 1)
+        self.assertEqual(set(self._visible_windows()), before)
+        window.show_help("steam")  # abrir de novo não empilha
+        self.assertEqual(window._help_slots["steam"].count(), 1)
+        window.show_notice("falhou")
+        self.assertTrue(window._bar.isVisible())
 
 
 if __name__ == "__main__":

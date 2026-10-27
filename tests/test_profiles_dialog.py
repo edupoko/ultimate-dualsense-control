@@ -6,7 +6,7 @@ from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QApplication
 
 from dualsense_ultimate_control.emulator.mapping import Profile, ProfileStore
 from dualsense_ultimate_control.profiles_dialog import ProfilesDialog, parse_list, target_from_text
@@ -118,8 +118,10 @@ class ProfilesDialogTests(unittest.TestCase):
         self.service.set_default_profile("A")
         self.dialog._reload()
         self.dialog._list.setCurrentRow(0)
-        with mock.patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes):
-            self.dialog._delete()
+        self.dialog._delete()
+        self.assertFalse(self.dialog._bar.isHidden())  # pergunta na faixa
+        self.assertEqual(len(self.store.load_all()), 1)  # nada apagado antes da resposta
+        self.dialog._bar._yes.click()
         self.assertEqual(self.store.load_all(), [])
         self.assertEqual(self.service.default_profile, "")
 
@@ -145,13 +147,15 @@ class ProfilesDialogTests(unittest.TestCase):
         self.dialog._reload()
         self.dialog._list.setCurrentRow(0)
         self.dialog._editor._swap.setChecked(True)
-        with mock.patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.No):
-            self.dialog._list.setCurrentRow(1)
+        self.dialog._list.setCurrentRow(1)
+        self.dialog._bar._no.click()
         self.assertEqual(self.dialog._current, "A")
+        self.assertEqual(self.dialog._list.currentItem().text(), "A")
         self.assertTrue(self.dialog._editor._swap.isChecked())
-        with mock.patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes):
-            self.dialog._list.setCurrentRow(1)
+        self.dialog._list.setCurrentRow(1)
+        self.dialog._bar._yes.click()
         self.assertEqual(self.dialog._current, "B")
+        self.assertEqual(self.dialog._list.currentItem().text(), "B")
         self.assertFalse(self.dialog._editor._swap.isChecked())
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections import deque
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
@@ -11,7 +12,6 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
-    QMessageBox,
     QPlainTextEdit,
     QPushButton,
     QVBoxLayout,
@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from .. import i18n
+from ..confirm import ConfirmBar
 from ..ds5 import calibration
 from ..ds5.reports import InputState
 from ..i18n import tr
@@ -48,6 +49,8 @@ class CalibrationPanel(QWidget):
         self._range_before: dict = {}
 
         layout = QVBoxLayout(self)
+        self._bar = ConfirmBar()
+        layout.addWidget(self._bar)
         warning = QLabel()
         warning.setWordWrap(True)
         i18n.bind(warning.setText, "cal.warning")
@@ -151,8 +154,10 @@ class CalibrationPanel(QWidget):
     # --- ações
 
     def run_center(self) -> None:
-        if not self._ready() or not self._confirm("cal.confirm_center"):
-            return
+        if self._ready():
+            self._confirm("cal.confirm_center", self._do_center)
+
+    def _do_center(self) -> None:
         before = self._before()
         try:
             calibration.calibrate_center(self._device)
@@ -162,8 +167,10 @@ class CalibrationPanel(QWidget):
             self._applied("center", before)
 
     def start_range(self) -> None:
-        if not self._ready() or not self._confirm("cal.confirm_range"):
-            return
+        if self._ready():
+            self._confirm("cal.confirm_range", self._do_start_range)
+
+    def _do_start_range(self) -> None:
         before = self._before()
         try:
             calibration.range_begin(self._device)
@@ -180,7 +187,13 @@ class CalibrationPanel(QWidget):
     def finish_range(self) -> None:
         if not self._ranging:
             return
-        if not self.range_ready and not self._confirm("cal.confirm_incomplete"):
+        if self.range_ready:
+            self._do_finish_range()
+        else:
+            self._confirm("cal.confirm_incomplete", self._do_finish_range)
+
+    def _do_finish_range(self) -> None:
+        if not self._ranging:
             return
         self._ranging = False
         try:
@@ -205,8 +218,10 @@ class CalibrationPanel(QWidget):
         self._update_buttons()
 
     def run_save(self) -> None:
-        if not self._ready() or not self._confirm("cal.confirm_save"):
-            return
+        if self._ready():
+            self._confirm("cal.confirm_save", self._do_save)
+
+    def _do_save(self) -> None:
         before = self._before()
         try:
             status = calibration.save(self._device)
@@ -221,8 +236,10 @@ class CalibrationPanel(QWidget):
         self._update_buttons()
 
     def run_reboot(self) -> None:
-        if not self._ready() or not self._confirm("cal.confirm_reboot"):
-            return
+        if self._ready():
+            self._confirm("cal.confirm_reboot", self._do_reboot)
+
+    def _do_reboot(self) -> None:
         self._record("reboot", True, self._before(), "")
         self._discard()
         self._set_result("cal.rebooted")
@@ -230,13 +247,14 @@ class CalibrationPanel(QWidget):
 
     # --- apoio
 
-    def _confirm(self, key: str) -> bool:
-        """Pede confirmação antes de gravar no controle; os testes substituem este método."""
-        answer = QMessageBox.warning(
-            self, tr("cal.title"), tr(key), QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
-            QMessageBox.StandardButton.Cancel,
-        )
-        return answer == QMessageBox.StandardButton.Ok
+    def _confirm(self, key: str, proceed: Callable[[], None]) -> None:
+        """Pergunta na faixa do topo e só então faz `proceed` (que confere de novo se o controle ainda serve);
+        os testes substituem este método."""
+        def confirmed() -> None:
+            if self._ready() or (self._ranging and self._device is not None):
+                proceed()
+
+        self._bar.ask(tr(key), confirmed)
 
     def _ready(self) -> bool:
         return self._device is not None and self._connection == "USB" and not self._ranging

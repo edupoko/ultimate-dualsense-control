@@ -21,8 +21,6 @@ from .widgets import (
     EmulationRow,
     MuteLedRow,
     PlayerRow,
-    show_bluetooth_help,
-    show_steam_help,
 )
 
 
@@ -39,11 +37,14 @@ class TrayIcon(QObject):
         show_window: Callable[[], None],
         quit_app: Callable[[], None],
         emulation: EmulationProcess | None = None,
+        show_help: Callable[[str], None] | None = None,
     ):
         super().__init__()
         self._service = service
         self._emulation = emulation
         self._show_window = show_window
+        # Ajuda ("steam"/"bluetooth") abre dentro da janela principal; sem ela, só mostra a janela.
+        self._show_help = show_help or (lambda _kind: show_window())
         self._quit_app = quit_app
         self._notified = False
         # O menu só é montado quando alguém o abre pela primeira vez: quem deixa o app só na
@@ -71,10 +72,10 @@ class TrayIcon(QObject):
         # Só aparece com mais de um DualSense conectado.
         popup.add_row(ControllerTabs(service))
         # Só aparece quando a Steam está controlando o controle selecionado.
-        self._steam_item = popup.add_item("", lambda: show_steam_help(service))
+        self._steam_item = popup.add_item("", lambda: self._show_help("steam"))
         i18n.bind(self._steam_item.set_text, "tray.steam_item")
         # Só aparece quando o Bluetooth tem um DualSense "conectado" que o sistema não registrou.
-        self._bluetooth_item = popup.add_item("", lambda: show_bluetooth_help(service))
+        self._bluetooth_item = popup.add_item("", lambda: self._show_help("bluetooth"))
         i18n.bind(self._bluetooth_item.set_text, "tray.bluetooth_item")
         popup.add_separator()
 
