@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import logging
+import time
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
+from .battery import POWER_ROOT, Battery, ChargeEstimate, ChargeTracker, read_battery
 from .colors import MAX_CUSTOM_COLORS, PRESETS
 from .settings import LightSettings, load_settings, save_settings
 from . import bluetooth, i18n, theme
@@ -25,6 +27,9 @@ POLL_INTERVAL_MS = 1000
 BLUETOOTH_WRITE_INTERVAL_MS = 120
 # O Bluetooth é consultado com menos frequência: chamar o BlueZ a cada segundo seria desperdício.
 BLUETOOTH_CHECK_EVERY = 5
+# Bateria relida do sysfs a cada 10 voltas (10 s), mesmo com a janela na bandeja: a estimativa de carga
+# precisa de todos os degraus.
+BATTERY_CHECK_EVERY = 10
 
 
 class LedService(QObject):
@@ -38,6 +43,8 @@ class LedService(QObject):
     steam_changed = Signal()
     # Mudou a lista de DualSense conectados pelo Bluetooth que o sistema não registrou.
     bluetooth_changed = Signal()
+    # Mudou a bateria de algum controle (lida do sysfs por `refresh_batteries`).
+    battery_changed = Signal()
 
     def __init__(
         self,
@@ -45,8 +52,14 @@ class LedService(QObject):
         leds_root: Path = LEDS_ROOT,
         steam_probe=hidraw_held_by_steam,
         bluetooth_probe=unregistered_dualsense,
+        power_root: Path = POWER_ROOT,
+        clock=time.monotonic,
     ):
         super().__init__()
+        self._power_root = power_root
+        self._clock = clock
+        self._batteries: dict[str, Battery] = {}
+        self._charge: dict[str, ChargeTracker] = {}
         self._steam_probe = steam_probe
         self._bluetooth_probe = bluetooth_probe
         self._unregistered: list[str] = []
@@ -96,6 +109,7 @@ class LedService(QObject):
         log.info("Manter na bandeja ao fechar: %s", "ligado" if enabled else "desligado")
         self._store.close_to_tray = bool(enabled)
         self._save()
+        self.settings_changed.emit()
 
     @property
     def emulation(self) -> bool:
@@ -303,6 +317,8 @@ class LedService(QObject):
         self._update_steam()
         if self._refreshes % BLUETOOTH_CHECK_EVERY == 0:
             self._update_bluetooth()
+        if self._refreshes % BATTERY_CHECK_EVERY == 0:
+            self.refresh_batteries()
         self._refreshes += 1
         self._apply_to(c for c in self._controllers.values() if c.name not in self._applied)
         self._update_status()
@@ -313,6 +329,35 @@ class LedService(QObject):
 
     def _selected_controller(self) -> Controller | None:
         return self._controllers.get(self._selected)
+
+    def battery_for(self, uid: str) -> Battery | None:
+        """Última bateria lida do controle, ou None se o controle não a expõe."""
+        return self._batteries.get(uid)
+
+    def charge_estimate(self, uid: str) -> ChargeEstimate | None:
+        """Estimativa de carga (só em memória) do controle; None se ele não está carregando."""
+        tracker = self._charge.get(uid)
+        battery = self._batteries.get(uid)
+        if tracker is None or battery is None or battery.status != "charging":
+            return None
+        return tracker.estimate()
+
+    def refresh_batteries(self) -> None:
+        """Relê a bateria de todos os controles conectados; avisa só se algo mudou."""
+        current = {}
+        for c in self._controllers.values():
+            battery = read_battery(c.uid, self._power_root) if c.uid else None
+            if battery is not None:
+                current[c.uid] = battery
+        now = self._clock()
+        for uid in list(self._charge):
+            if uid not in current:
+                del self._charge[uid]
+        for uid, battery in current.items():
+            self._charge.setdefault(uid, ChargeTracker()).update(now, battery)
+        if current != self._batteries:
+            self._batteries = current
+            self.battery_changed.emit()
 
     def controller_for_uid(self, uid: str) -> Controller | None:
         return next((c for c in self._controllers.values() if c.uid == uid), None)

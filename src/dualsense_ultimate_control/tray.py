@@ -8,6 +8,7 @@ from PySide6.QtCore import QObject
 from PySide6.QtGui import QPalette
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 
+from .battery import describe
 from . import i18n
 from .i18n import tr
 from .emulation import EmulationProcess
@@ -58,6 +59,7 @@ class TrayIcon(QObject):
         service.status_changed.connect(self._on_status)
         service.steam_changed.connect(self._sync_steam)
         service.controllers_changed.connect(self._sync_steam)
+        service.battery_changed.connect(self._update_tooltip)
         service.bluetooth_changed.connect(self._sync_bluetooth)
         service.controllers_changed.connect(self._sync_disconnect)
         service.settings_changed.connect(self._sync_disconnect)
@@ -166,4 +168,13 @@ class TrayIcon(QObject):
     def _on_status(self, text: str) -> None:
         if self._popup is not None:
             self._status.set_text(text)
-        self._tray.setToolTip(f"DualSense Ultimate Control: {text}")
+        self._text = text
+        self._update_tooltip()
+
+    def _update_tooltip(self) -> None:
+        lines = [f"DualSense Ultimate Control: {getattr(self, '_text', '')}"]
+        for controller in self._service.controllers:
+            battery = self._service.battery_for(controller.uid)
+            if battery is not None:
+                lines.append(f"{controller.connection or controller.uid}: {describe(battery)}")
+        self._tray.setToolTip("\n".join(lines))

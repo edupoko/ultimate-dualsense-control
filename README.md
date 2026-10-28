@@ -83,6 +83,8 @@ Fechar a janela só a esconde, e o app continua na bandeja (desligue **Ao fechar
 
 - **Entradas**: o desenho do controle acende cada botão e o direcional, mostra os analógicos com o alcance e a circularidade, os dedos no touchpad, a pressão de L2/R2 em porcentagem e o gráfico do giroscópio.
 - **Saídas**: motores de vibração, efeitos dos gatilhos adaptáveis (resistência, arma, arco, máquina e vibração), sequência de LEDs, tom de áudio no alto-falante e no fone e medidor do microfone.
+- **Informações**: firmware (data de compilação e versões), número de série, cor, modelo da placa, códigos de barras, endereço Bluetooth e se o controle parece original, com botão de copiar. Só leitura: nada é gravado. Pelo Bluetooth o controle só informa firmware, placa e endereço; série, códigos, cor e a verificação de original precisam do cabo USB. O resumo também aparece na página Controles.
+  Embaixo, **Bateria e carga**: estado e **estimativa** da velocidade de carga (% por minuto e tempo até 100 %, calculados pelo tempo entre os degraus de 10 % que o controle informa; precisa de umas duas subidas, cerca de 10 minutos) e, por USB, o teto de potência anunciado pela porta. O controle não informa corrente nem tensão, então não há medida real; para isso use um medidor USB.
 - **Calibrar analógicos…**: centro e alcance dos analógicos, com histórico local. A calibração só vale até reiniciar o controle, a menos que você clique em **Salvar no controle** (que pede confirmação num diálogo).
 - **Calibrar giroscópio…**: mede o desvio com o controle parado e guarda a correção no `settings.json`, para o emulador usar.
 - **Teste rápido…**: checklist guiado de todo o controle.

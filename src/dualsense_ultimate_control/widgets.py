@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 
 import logging
 
+from .battery import level_icon
 from . import autostart, bluetooth, i18n, theme
 from .confirm import HelpPanel
 from .colors import PRESETS
@@ -429,6 +430,7 @@ class ControllerTabs(QWidget):
         self._bar.currentChanged.connect(self._on_tab_changed)
         layout.addWidget(self._bar)
         service.controllers_changed.connect(self._rebuild)
+        service.battery_changed.connect(self._rebuild)
         i18n.hub.changed.connect(self._rebuild)  # "Controle N" muda com o idioma
         self._rebuild()
 
@@ -439,6 +441,9 @@ class ControllerTabs(QWidget):
             self._bar.removeTab(0)
         for number, controller in enumerate(controllers, start=1):
             label = f"{number} · {controller.connection}" if controller.connection else tr("tabs.controller", number=number)
+            battery = self._service.battery_for(controller.uid)
+            if battery is not None:
+                label += f" · {level_icon(battery)} {battery.percent}%"
             tab = self._bar.addTab(label)
             self._bar.setTabData(tab, controller.name)
             self._bar.setTabToolTip(tab, controller.uid)

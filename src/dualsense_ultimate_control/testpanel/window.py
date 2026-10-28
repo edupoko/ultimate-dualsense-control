@@ -7,6 +7,7 @@ from PySide6.QtGui import QHideEvent, QShowEvent
 from PySide6.QtWidgets import QFrame, QGroupBox, QHBoxLayout, QLabel, QPushButton, QScrollArea, QTabWidget, QVBoxLayout, QWidget
 
 from .. import i18n
+from ..controller_info import ChargeCard, ControllerInfoCard
 from ..dialogs import PanelDialog
 from ..responsive import Columns, stack
 from ..ds5.reports import InputState
@@ -92,12 +93,20 @@ class TestWindow(QWidget):
         left = stack(self._view, groups["test.touchpad"], stretch=(3, 1))
         right = stack(sticks_row, reset, groups["test.gyro"], groups["test.accel"], stretch=(2, 0, 1, 1))
         inputs = QWidget()
-        QVBoxLayout(inputs).addWidget(Columns(left, right, stretch=(3, 2)))
+        self.inputs_columns = Columns(left, right, stretch=(3, 2))
+        QVBoxLayout(inputs).addWidget(self.inputs_columns)
 
         tabs.addTab(_scrolled(inputs), "")
         tabs.addTab(_scrolled(self._outputs), "")
+        info = QWidget()
+        info_layout = QVBoxLayout(info)
+        info_layout.addWidget(ControllerInfoCard(service))
+        info_layout.addWidget(ChargeCard(service))
+        info_layout.addStretch(1)
+        tabs.addTab(_scrolled(info), "")
         i18n.bind(lambda text: tabs.setTabText(0, text), "test.tab_inputs")
         i18n.bind(lambda text: tabs.setTabText(1, text), "test.tab_outputs")
+        i18n.bind(lambda text: tabs.setTabText(2, text), "test.tab_info")
 
         self._timer = QTimer(self)
         self._timer.setInterval(POLL_MS)
