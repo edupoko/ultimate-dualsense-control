@@ -22,6 +22,7 @@ VIEW_BYTES = 256 * 1024
 
 FILTER_ALL = "all"
 FILTER_PROBLEMS = "problems"
+FILTER_ACTIONS = "actions"
 
 
 class LogHighlighter(QSyntaxHighlighter):
@@ -33,12 +34,16 @@ class LogHighlighter(QSyntaxHighlighter):
         self._warning.setForeground(QColor("#d9a23b"))
         self._error = QTextCharFormat()
         self._error.setForeground(QColor("#e5534b"))
+        self._action = QTextCharFormat()
+        self._action.setForeground(QColor("#4f9fd9"))
 
     def highlightBlock(self, text: str) -> None:
         if " ERROR " in text[:40] or " CRITICAL " in text[:40]:
             self.setFormat(0, len(text), self._error)
         elif " WARNING " in text[:40]:
             self.setFormat(0, len(text), self._warning)
+        elif logs.is_action_line(text):
+            self.setFormat(0, len(text), self._action)
 
 
 class LogWindow(QWidget):
@@ -98,6 +103,7 @@ class LogWindow(QWidget):
         self._filter.clear()
         self._filter.addItem(i18n.tr("log.filter_all"), FILTER_ALL)
         self._filter.addItem(i18n.tr("log.filter_problems"), FILTER_PROBLEMS)
+        self._filter.addItem(i18n.tr("log.filter_actions"), FILTER_ACTIONS)
         self._filter.setCurrentIndex(max(0, self._filter.findData(current)))
         self._filter.blockSignals(False)
 
@@ -105,6 +111,8 @@ class LogWindow(QWidget):
         text = logs.read_log(VIEW_BYTES)
         if self._filter.currentData() == FILTER_PROBLEMS:
             text = logs.problems_only(text)
+        elif self._filter.currentData() == FILTER_ACTIONS:
+            text = logs.actions_only(text)
         return text
 
     def refresh(self) -> None:

@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 
 from . import i18n
 from .confirm import ConfirmBar
+from .actions import log_action
 from .emulator.config import default_profiles_dir
 from .emulator.mapping import (
     BUTTON_SOURCES,
@@ -558,8 +559,10 @@ class ProfilesDialog(QWidget):
 
     def _start_new(self) -> None:
         self._list.clearSelection()
-        self._show(Profile(name=self._free_name(tr("profiles.new_name"))), None)
+        profile = Profile(name=self._free_name(tr("profiles.new_name")))
+        self._show(profile, None)
         self._dirty = True
+        log_action("perfil novo (rascunho)", None, nome=profile.name)
 
     def _duplicate(self) -> None:
         self._guard(self._start_duplicate)
@@ -571,6 +574,7 @@ class ProfilesDialog(QWidget):
         self._list.clearSelection()
         self._show(profile, None)
         self._dirty = True
+        log_action("perfil duplicado (rascunho)", None, nome=profile.name)
 
     def _free_name(self, base: str) -> str:
         taken = {existing.name.lower() for existing in self._store.load_all()}
@@ -588,6 +592,7 @@ class ProfilesDialog(QWidget):
         if self._current is None:
             return
         self._store.delete(self._current)
+        log_action("perfil excluído", None, nome=self._current)
         if self._service.default_profile == self._current:
             self._service.set_default_profile("")
         self._reload()
@@ -612,6 +617,7 @@ class ProfilesDialog(QWidget):
             self._service.set_default_profile(profile.name)
         self._current = profile.name
         self._dirty = False
+        log_action("perfil salvo", None, nome=profile.name)
         self._reload(select=profile.name)
         self._status.setText(tr("profiles.saved"))
 
@@ -645,6 +651,7 @@ class ProfilesDialog(QWidget):
         except (OSError, ValueError) as error:
             self._status.setText(tr("profiles.import_failed", error=str(error)))
             return
+        log_action("perfil importado", None, nome=profile.name, arquivo=Path(path).name)
         self._reload(select=profile.name)
         self._show(profile, profile.name)
         self._status.setText(tr("profiles.imported", name=profile.name))
@@ -662,4 +669,5 @@ class ProfilesDialog(QWidget):
         except OSError as error:
             self._status.setText(tr("profiles.save_failed", error=str(error)))
             return
+        log_action("perfil exportado", None, nome=profile.name, arquivo=Path(path).name)
         self._status.setText(tr("profiles.exported", path=path))

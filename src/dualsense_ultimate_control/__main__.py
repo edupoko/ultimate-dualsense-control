@@ -21,6 +21,7 @@ from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 
 from . import __version__, kdetheme, logs, theme
+from .actions import flush_bursts
 from .emulation import EmulationProcess
 from .i18n import tr
 from .migrate import migrate_legacy
@@ -104,6 +105,7 @@ def main(argv: list[str] | None = None) -> int:
     def quit_app() -> None:
         """Encerra de vez: tudo some na hora (ícone, menu e janelas) e só então o app sai."""
         logging.info("Fechando o app")
+        flush_bursts()  # ações de slider que ainda esperavam a rajada acabar
         service.flush()
         emulation.stop()  # devolve os controles antes de sair
         if tray is not None:

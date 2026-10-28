@@ -91,6 +91,7 @@ STRINGS: dict[str, dict[str, str]] = {
     "log.show": {"pt": "Mostrar:", "en": "Show:", "es": "Mostrar:"},
     "log.filter_all": {"pt": "Tudo", "en": "Everything", "es": "Todo"},
     "log.filter_problems": {"pt": "Só avisos e erros", "en": "Warnings and errors only", "es": "Solo avisos y errores"},
+    "log.filter_actions": {"pt": "Ações no controle", "en": "Controller actions", "es": "Acciones en el mando"},
     "log.copy": {"pt": "Copiar", "en": "Copy", "es": "Copiar"},
     "log.open_folder": {"pt": "Abrir pasta", "en": "Open folder", "es": "Abrir carpeta"},
     "log.clear": {"pt": "Limpar", "en": "Clear", "es": "Limpiar"},

@@ -55,7 +55,8 @@ A janela tem uma lista à esquerda com quatro páginas:
 - **Controles**: barra de luz, LEDs de jogador, LED do microfone, desconexão (Bluetooth), emulação e perfil.
 - **Testar controle**: entradas ao vivo, saídas, calibração, giroscópio e teste rápido.
 - **Perfis de emulação**: criar, editar, importar e exportar perfis.
-- **Registros**: os logs do app, com atualização automática e filtros.
+- **Registros**: os logs do app, com atualização automática e três filtros: tudo, só avisos e erros, e **Ações no controle**.
+  O log guarda cada ação sua que muda ou testa um controle, numa linha curta com o controle (últimos 2 bytes do endereço e a conexão), por exemplo `[Controle bc:c7 · USB] cor → #FF0000`: cor e brilho (sliders registram só o valor final), LEDs de jogador e do microfone, emulação por controle, perfil padrão, criar/salvar/excluir/importar/exportar perfil, passos da calibração dos analógicos (com o resultado), resultado de cada item do teste rápido, testes de vibração, gatilhos e LEDs, e a calibração do giroscópio. Os endereços já apareciam no log; nenhum dado novo é guardado.
 - **Configurações**: idioma, tema, início com o sistema e comportamento ao fechar.
 
 Tudo abre dentro da própria janela. Perguntas e avisos aparecem numa faixa no topo da página.

@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 
 APP_DIR = "dualsense-ultimate-control"
+ACTIONS_LOGGER = "dualsense_ultimate_control.actions"  # igual a `actions.LOGGER_NAME`; repetido para não importar o Qt aqui
 LOG_NAME = "dualsense-ultimate-control.log"
 CRASH_NAME = "crash.log"
 MAX_BYTES = 512 * 1024
@@ -25,6 +26,7 @@ DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 # Um registro começa com a data; o que vem depois (ex.: traceback) pertence ao registro anterior.
 _ENTRY_START = re.compile(r"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d ")
 _PROBLEM = re.compile(r"^\S+ \S+ (WARNING|ERROR|CRITICAL) ")
+_ACTION = re.compile(r"^\S+ \S+ \S+ " + re.escape(ACTIONS_LOGGER) + ": ")
 
 _HANDLER_TAG = "_dualsense_ultimate_control_handler"
 _crash_file = None  # mantido aberto enquanto o processo vive
@@ -142,6 +144,16 @@ def problems_only(text: str) -> str:
             keep = bool(_PROBLEM.match(line))
         if keep:
             kept.append(line)
+    return "\n".join(kept) + ("\n" if kept else "")
+
+
+def is_action_line(line: str) -> bool:
+    return bool(_ACTION.match(line))
+
+
+def actions_only(text: str) -> str:
+    """Só as ações do usuário no controle (logger `...actions`); o resto é descartado."""
+    kept = [line for line in text.splitlines() if is_action_line(line)]
     return "\n".join(kept) + ("\n" if kept else "")
 
 
