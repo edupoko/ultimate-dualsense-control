@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from . import i18n
+from .battery import describe, usb_max_power
 from .ds5.info import ControllerInfo, read_info
 from .i18n import tr
 from .responsive import Columns
@@ -175,3 +176,51 @@ class ControllerInfoCard(QGroupBox):
         if has:
             for rows in (self._summary, self._software, self._hardware):
                 rows.show_info(info)
+
+
+class ChargeCard(QGroupBox):
+    """Estado da carga e **estimativa** de velocidade (o controle não informa corrente nem tensão)."""
+
+    def __init__(self, service: LedService, parent: QWidget | None = None):
+        super().__init__(parent)
+        self._service = service
+        i18n.bind(self.setTitle, "charge.title")
+        layout = QVBoxLayout(self)
+        self._state = QLabel()
+        self._rate = QLabel()
+        self._port = QLabel()
+        self._note = QLabel()
+        self._note.setWordWrap(True)
+        i18n.bind(self._note.setText, "charge.note")
+        for widget in (self._state, self._rate, self._port, self._note):
+            layout.addWidget(widget)
+        service.battery_changed.connect(self._render)
+        service.controllers_changed.connect(self._render)
+        i18n.hub.changed.connect(self._render)
+        self._render()
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        self._render()
+
+    def _render(self) -> None:
+        uid = self._service.selected_uid
+        battery = self._service.battery_for(uid) if uid else None
+        self._state.setText(describe(battery) if battery else tr("charge.unavailable"))
+        estimate = self._service.charge_estimate(uid) if uid else None
+        if estimate is None:
+            text = tr("charge.not_charging") if battery is not None else ""
+        elif estimate.rate_per_min is None:
+            text = tr("charge.measuring")
+        else:
+            text = tr("charge.rate", rate=f"{estimate.rate_per_min:.2f}")
+            if estimate.remaining_min is not None:
+                text += " · " + tr("charge.remaining", minutes=round(estimate.remaining_min))
+        if estimate is not None and estimate.intervals_min:
+            text += "\n" + tr("charge.steps", list=", ".join(f"{m:.1f}" for m in estimate.intervals_min[-5:]))
+        self._rate.setText(text)
+        self._rate.setVisible(bool(text))
+        controller = self._service.controller_for_uid(uid or "")
+        power = usb_max_power(controller.hidraw) if controller is not None and controller.connection == "USB" else None
+        self._port.setText(tr("charge.port", power=power) if power else "")
+        self._port.setVisible(bool(power))

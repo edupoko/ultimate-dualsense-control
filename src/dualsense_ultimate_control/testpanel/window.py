@@ -7,7 +7,7 @@ from PySide6.QtGui import QHideEvent, QShowEvent
 from PySide6.QtWidgets import QFrame, QGroupBox, QHBoxLayout, QLabel, QPushButton, QScrollArea, QTabWidget, QVBoxLayout, QWidget
 
 from .. import i18n
-from ..controller_info import ControllerInfoCard
+from ..controller_info import ChargeCard, ControllerInfoCard
 from ..dialogs import PanelDialog
 from ..responsive import Columns, stack
 from ..ds5.reports import InputState
@@ -101,6 +101,7 @@ class TestWindow(QWidget):
         info = QWidget()
         info_layout = QVBoxLayout(info)
         info_layout.addWidget(ControllerInfoCard(service))
+        info_layout.addWidget(ChargeCard(service))
         info_layout.addStretch(1)
         tabs.addTab(_scrolled(info), "")
         i18n.bind(lambda text: tabs.setTabText(0, text), "test.tab_inputs")

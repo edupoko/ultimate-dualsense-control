@@ -152,10 +152,7 @@ class MainWindow(QWidget):
         footer.addWidget(self._quit_button)
         column.addLayout(footer)
 
-        # Bateria: relida do sysfs a cada 10 s só enquanto a janela está visível.
-        self._battery_timer = QTimer(self)
-        self._battery_timer.setInterval(10_000)
-        self._battery_timer.timeout.connect(service.refresh_batteries)
+        # Bateria: o serviço relê do sysfs a cada 10 s; ao mostrar a janela, relê na hora.
         service.battery_changed.connect(self._sync_battery)
         service.controllers_changed.connect(self._sync_battery)
         i18n.hub.changed.connect(self._sync_battery)
@@ -197,7 +194,6 @@ class MainWindow(QWidget):
 
     def showEvent(self, event) -> None:
         self._service.refresh_batteries()
-        self._battery_timer.start()
         super().showEvent(event)
 
     def _sync_battery(self) -> None:
@@ -209,7 +205,6 @@ class MainWindow(QWidget):
             self._battery.setStyleSheet("color: #d9534f;" if battery.low else "")
 
     def hideEvent(self, event) -> None:
-        self._battery_timer.stop()
         # Chega ao ir para a bandeja e ao sair do app (que esconde as janelas antes de encerrar).
         self._save_geometry()
         super().hideEvent(event)
