@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from .. import i18n
+from ..actions import log_action, log_burst
 from ..ds5 import triggers
 from ..i18n import tr
 from ..service import LedService
@@ -94,6 +95,9 @@ class TriggerRow(QGroupBox):
             self._effect.addItem(tr(key), key)
         self._effect.setCurrentIndex(max(current, 0))
         self._effect.blockSignals(False)
+
+    def describe(self) -> str:
+        return f"{tr(self._effect.currentData())}, posição {self._position.value()}, força {self._strength.value()}"
 
     def effect(self) -> bytes:
         make = triggers.EFFECTS[self._effect.currentData()]
@@ -213,8 +217,8 @@ class OutputPanel(QWidget):
         layout.addWidget(rumble)
 
         row = QHBoxLayout()
-        self._left = TriggerRow("out.left_trigger", lambda effect: self._send(left_trigger=effect))
-        self._right = TriggerRow("out.right_trigger", lambda effect: self._send(right_trigger=effect))
+        self._left = TriggerRow("out.left_trigger", lambda effect: self._trigger("esquerdo", self._left, left_trigger=effect))
+        self._right = TriggerRow("out.right_trigger", lambda effect: self._trigger("direito", self._right, right_trigger=effect))
         row.addWidget(self._left)
         row.addWidget(self._right)
         layout.addLayout(row)
@@ -266,8 +270,22 @@ class OutputPanel(QWidget):
                 slider.setValue(value)
                 slider.blockSignals(False)
         self._send(rumble=(heavy, light))
+        if sliders:
+            self._log_burst("vibração", "teste de vibração", value=f"pesado {heavy}, leve {light}")
+
+    def _trigger(self, side: str, row: TriggerRow, **fields) -> None:
+        self._send(**fields)
+        self._log_burst(f"gatilho {side}", f"teste do gatilho {side}", value=row.describe())
+
+    def _log_burst(self, key: str, kind: str, **detail) -> None:
+        if self._device is None:
+            return
+        controller = self._controller()
+        log_burst(f"{key}:{controller.uid if controller else ''}", kind, controller, **detail)
 
     def _pulse(self) -> None:
+        if self._device is not None:
+            log_action("pulso de vibração", self._controller())
         self._rumble(255, 255)
         self._pulse_timer.start()
 
@@ -277,6 +295,7 @@ class OutputPanel(QWidget):
         controller = self._controller()
         if controller is None or self._sequence_timer.isActive():
             return
+        log_action("teste da sequência de LEDs", controller)
         steps = led_steps(controller)
         steps.append(self._restore_leds)
         self._sequence = steps

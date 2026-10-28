@@ -10,6 +10,7 @@ from PySide6.QtCore import QObject, QTimer, Signal
 from .colors import MAX_CUSTOM_COLORS, PRESETS
 from .settings import LightSettings, load_settings, save_settings
 from . import bluetooth, i18n, theme
+from .actions import log_action, log_burst
 from .bluetooth import unregistered_dualsense
 from .players import PLAYER_COUNT, pattern_for
 from .steam import hidraw_held_by_steam
@@ -121,6 +122,7 @@ class LedService(QObject):
         chosen.add(uid) if enabled else chosen.discard(uid)
         self._store.emulation = sorted(chosen)
         self._save()
+        log_action("emulação de Xbox 360", self.controller_for_uid(uid) or uid, value="ligada" if enabled else "desligada")
         self.settings_changed.emit()
 
     @property
@@ -137,6 +139,7 @@ class LedService(QObject):
         if self._store.default_profile != name:
             self._store.default_profile = name
             self._save()
+            log_action("perfil padrão da emulação", None, value=name or "(sem alterações)")
 
     @property
     def auto_players(self) -> bool:
@@ -177,10 +180,10 @@ class LedService(QObject):
 
     def set_gyro_offset(self, uid: str, offset: tuple[float, float, float] | None) -> None:
         if offset is None:
-            log.info("Correção do giroscópio removida: %s", uid)
+            log_action("correção do giroscópio", self.controller_for_uid(uid) or uid, value="removida")
             self._store.gyro_offsets.pop(uid, None)
         else:
-            log.info("Correção do giroscópio de %s: %s", uid, offset)
+            log_action("correção do giroscópio", self.controller_for_uid(uid) or uid, value="salva", offset=offset)
             self._store.gyro_offsets[uid] = tuple(offset)
         self._save()
 
@@ -204,7 +207,7 @@ class LedService(QObject):
         if controller is None or not self.can_disconnect:
             log.warning("Não há controle Bluetooth selecionado para desconectar")
             return
-        log.info("Desconectando %s (%s)", controller.name, controller.uid)
+        log_action("desconectar (Bluetooth)", controller)
         bluetooth.disconnect(controller.uid)
 
     @property
@@ -296,8 +299,22 @@ class LedService(QObject):
             if previous[1] != self._selected:
                 self.settings_changed.emit()
 
+    def _selected_controller(self) -> Controller | None:
+        return self._controllers.get(self._selected)
+
+    def controller_for_uid(self, uid: str) -> Controller | None:
+        return next((c for c in self._controllers.values() if c.uid == uid), None)
+
+    def _log_selected(self, kind: str, **detail) -> None:
+        log_action(kind, self._selected_controller(), **detail)
+
+    def _log_selected_burst(self, key: str, kind: str, **detail) -> None:
+        controller = self._selected_controller()
+        log_burst(f"{key}:{controller.uid if controller else ''}", kind, controller, **detail)
+
     def set_color(self, color: tuple[int, int, int]) -> None:
         self.settings.color = tuple(color)
+        self._log_selected_burst("cor", "cor", value="#%02X%02X%02X" % self.settings.color)
         self._changed()
 
     def add_custom_color(self, color: tuple[int, int, int]) -> None:
@@ -307,22 +324,27 @@ class LedService(QObject):
         if color not in PRESETS.values() and color not in custom:
             custom.append(color)
             del custom[:-MAX_CUSTOM_COLORS]
+            self._log_selected("cor guardada no seletor rápido", value="#%02X%02X%02X" % color)
         self.set_color(color)
 
     def set_brightness(self, value: int) -> None:
         self.settings.brightness = max(0, min(255, value))
+        self._log_selected_burst("brilho", "brilho", value=self.settings.brightness)
         self._changed()
 
     def set_player(self, index: int, on: bool) -> None:
         self.settings.players[index] = on
+        self._log_selected("LED de jogador", value=f"{index + 1} {'ligado' if on else 'desligado'}")
         self._changed()
 
     def set_players(self, flags: list[bool]) -> None:
         self.settings.players = list(flags)
+        self._log_selected("LEDs de jogador", value=",".join(str(i + 1) for i, on in enumerate(flags) if on) or "nenhum")
         self._changed()
 
     def set_mute_led(self, on: bool) -> None:
         self.settings.mute_led = bool(on)
+        self._log_selected("LED do microfone", value="ligado" if on else "desligado")
         self._changed(write_mute=True)
 
     def _log_controller_changes(self, before: list[str]) -> None:

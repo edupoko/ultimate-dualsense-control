@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from .. import i18n
+from ..actions import log_action
 from ..ds5 import audio, triggers
 from ..ds5.reports import InputState
 from ..i18n import tr
@@ -203,8 +204,8 @@ class QuickTestDialog(QWidget):
         for test in sequence.TESTS:
             row = ItemRow(test, extras.get(test), actions.get(test))
             row.title.clicked.connect(lambda _c=False, t=test: self._go(lambda: self._sequence.open(t)))
-            row.pass_button.clicked.connect(lambda: self._go(lambda: self._sequence.mark(True)))
-            row.fail_button.clicked.connect(lambda: self._go(lambda: self._sequence.mark(False)))
+            row.pass_button.clicked.connect(lambda: self._mark(True))
+            row.fail_button.clicked.connect(lambda: self._mark(False))
             if row.action_button is not None:
                 row.action_button.clicked.connect(lambda _c=False, t=test: self._action(t))
             self._rows[test] = row
@@ -219,7 +220,7 @@ class QuickTestDialog(QWidget):
         self._summary = QLabel()
         bottom.addWidget(self._summary, 1)
         self._start_button = QPushButton()  # o texto ("Começar"/"Recomeçar") vem de _refresh
-        self._start_button.clicked.connect(lambda: self._go(self._sequence.start))
+        self._start_button.clicked.connect(self._start)
         close = QPushButton()
         i18n.bind(close.setText, "nav.back")
         close.clicked.connect(self.back_requested)
@@ -280,21 +281,41 @@ class QuickTestDialog(QWidget):
         current = self._sequence.current
         if current == "buttons":
             if long_press:
-                self._go(self._sequence.skip)
+                self._skip()
             return
         if "square" in pressed:
-            self._go(self._sequence.start if current is None else lambda: self._sequence.mark(True))
+            self._start() if current is None else self._mark(True)
         elif "cross" in pressed and current is not None:
-            self._go(lambda: self._sequence.mark(False))
+            self._mark(False)
         elif "triangle" in pressed:
             self._go(self._sequence.previous)
         elif "circle" in pressed:
             if current is None:
                 self.back_requested.emit()
             else:
-                self._go(self._sequence.skip)
+                self._skip()
 
     # --- navegação
+
+    def _start(self) -> None:
+        log_action("teste rápido", selected_controller(self._service), value="iniciado")
+        self._go(self._sequence.start)
+
+    def _mark(self, passed: bool) -> None:
+        """Dá o resultado ao item aberto (passou/falhou) e segue; só registra se havia item aberto."""
+        current = self._sequence.current
+        if current is not None:
+            log_action(f"teste rápido: {current}", selected_controller(self._service), value="passou" if passed else "falhou")
+        self._go(lambda: self._sequence.mark(passed))
+        if current is not None and self._sequence.finished:
+            done, failed, _ = self._sequence.summary()
+            log_action("teste rápido", selected_controller(self._service), value="concluído", passou=done, falhou=failed)
+
+    def _skip(self) -> None:
+        current = self._sequence.current
+        if current is not None:
+            log_action(f"teste rápido: {current}", selected_controller(self._service), value="pulado")
+        self._go(self._sequence.skip)
 
     def _go(self, change) -> None:
         """Aplica uma mudança na sequência e, se o item aberto mudou, troca os efeitos ligados."""
@@ -309,7 +330,7 @@ class QuickTestDialog(QWidget):
         self._auto_pass_pending = False
         check = self._checks[test]
         if self._sequence.current == test and check.done and self._sequence.results[test] is None:
-            self._go(lambda: self._sequence.mark(True))
+            self._mark(True)
 
     def _activate(self, fresh: bool) -> None:
         """Liga os efeitos do item aberto; `fresh` (item recém-aberto) também zera as verificações."""

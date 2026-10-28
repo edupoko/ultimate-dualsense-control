@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from .. import i18n
+from ..actions import log_action
 from ..confirm import ConfirmBar
 from ..ds5 import calibration
 from ..ds5.reports import InputState
@@ -28,6 +29,13 @@ from .outputs import selected_controller
 from .widgets import StickView
 
 log = logging.getLogger(__name__)
+
+ACTION_LABELS = {
+    "center": "calibração do centro",
+    "range": "calibração do alcance",
+    "save": "gravar calibração no controle",
+    "reboot": "reiniciar controle (calibração)",
+}
 
 RECENT_STATES = 30
 
@@ -214,6 +222,7 @@ class CalibrationPanel(QWidget):
         except (OSError, calibration.CalibrationError):
             log.warning("Falha ao encerrar a calibração de alcance cancelada; reiniciando o controle")
         self._discard()
+        log_action("calibração do alcance", selected_controller(self._service), value="cancelada")
         self._set_result("cal.cancelled")
         self._update_buttons()
 
@@ -289,6 +298,10 @@ class CalibrationPanel(QWidget):
 
     def _record(self, action: str, ok: bool, before: dict, detail: str) -> None:
         controller = selected_controller(self._service)
+        label = ACTION_LABELS.get(action, action)
+        log_action(label, controller, value="ok" if ok else "falhou", detalhe=detail) if detail else log_action(
+            label, controller, value="ok" if ok else "falhou"
+        )
         entry = calibration.HistoryEntry(
             datetime.now().isoformat(timespec="seconds"), controller.uid if controller else "", action, ok, before,
             detail, calibration.read_imu_backup(self._device) if self._device is not None else "",

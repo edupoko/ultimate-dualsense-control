@@ -7,6 +7,7 @@ from collections import deque
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout, QWidget
 
 from .. import i18n
+from ..actions import log_action
 from ..ds5 import imu
 from ..ds5.reports import InputState
 from ..i18n import tr
@@ -108,7 +109,9 @@ class GyroPanel(QWidget):
         reading = imu.measure_rest(self._recent)
         if reading is None or not reading.stable:
             self._set_result("gyro.not_still")
+            log_action("calibração do giroscópio", self._service.controller_for_uid(self._uid) or self._uid, value="recusada (controle em movimento)")
             return
+        log_action("calibração do giroscópio", self._service.controller_for_uid(self._uid) or self._uid, value="iniciada")
         self._collected = []
         self._progress.setValue(0)
         self._set_result("gyro.collecting")
@@ -124,6 +127,7 @@ class GyroPanel(QWidget):
         self._collected = None
         if not reading.stable:
             self._set_result("gyro.moved")
+            log_action("calibração do giroscópio", self._service.controller_for_uid(self._uid) or self._uid, value="descartada (houve movimento)")
             return
         self._service.set_gyro_offset(self._uid, reading.offset)
         self._set_result("gyro.done")
