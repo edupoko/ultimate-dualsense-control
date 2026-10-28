@@ -154,6 +154,10 @@ scripts/diagnose.sh
 
 Ele mostra o que o Bluetooth, o kernel e o app enxergam, quem está com o controle aberto (a Steam ou o OpenRGB, por exemplo), o estado da emulação e os últimos eventos e avisos.
 
+## Como contribuir
+
+O fluxo de branches, commits, Pull Requests e versões está em [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Créditos
 
 O ícone do controle (na bandeja, na janela e no atalho) é o "Controller 1" do pacote Streamline Core (streamlinehq.com). Confira a licença do pacote antes de redistribuir o projeto.
