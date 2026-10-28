@@ -21,6 +21,7 @@ CLAUDE.md
 scripts/controller_outline.py
 scripts/measure_controller_view.py
 scripts/measure_theme.py
+scripts/audit_layout.py
 
 # Saídas e logs locais
 *.log
