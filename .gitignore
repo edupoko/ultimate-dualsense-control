@@ -1,4 +1,27 @@
+# Ambiente e caches do Python
 .venv/
 __pycache__/
 *.egg-info/
 dist/
+build/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Ferramentas de desenvolvimento e edição
+.claude/
+.vscode/
+.idea/
+
+# Desenvolvimento: não são necessários para rodar o programa
+tests/
+PLANO.md
+FRONTEND.md
+CLAUDE.md
+scripts/controller_outline.py
+scripts/measure_controller_view.py
+scripts/measure_theme.py
+
+# Saídas e logs locais
+*.log
+*.png
