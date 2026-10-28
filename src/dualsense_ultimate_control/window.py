@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .controller_info import ControllerInfoCard
 from .battery import describe, level_icon
 from . import i18n
 from .i18n import tr
@@ -132,7 +133,7 @@ class MainWindow(QWidget):
 
         layout.addWidget(self._build_permission_banner())
         # Janela larga: luz à esquerda; LEDs, emulação e perfil à direita.
-        right = [self._build_players_group()]
+        right = [self._build_players_group(), ControllerInfoCard(service)]
         if emulation is not None:
             right += [EmulationRow(service, emulation), ProfilePicker(service)]
         right_column = stack(*right, QWidget(), stretch=(0,) * len(right) + (1,))
