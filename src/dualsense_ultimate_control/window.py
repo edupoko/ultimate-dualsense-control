@@ -142,12 +142,15 @@ class MainWindow(QWidget):
 
         footer = QHBoxLayout()
         footer.addStretch(1)
-        quit_button = QPushButton()
-        i18n.bind(quit_button.setText, "window.close")
-        quit_button.clicked.connect(lambda: self._quit_app())
-        footer.addWidget(quit_button)
+        self._quit_button = QPushButton()
+        # Passa pelo closeEvent: esconde na bandeja ou sai, conforme a opção.
+        self._quit_button.clicked.connect(self.close)
+        footer.addWidget(self._quit_button)
         column.addLayout(footer)
 
+        service.settings_changed.connect(self._sync_quit_label)
+        i18n.hub.changed.connect(self._sync_quit_label)
+        self._sync_quit_label()
         service.settings_changed.connect(self._sync)
         service.status_changed.connect(self._on_status)
         self._sync()
@@ -309,8 +312,14 @@ class MainWindow(QWidget):
             self._asked_permission = True
             QTimer.singleShot(0, self._offer_permission)
 
+    def _stays_in_tray(self) -> bool:
+        return self._tray_available and self._service.close_to_tray
+
+    def _sync_quit_label(self) -> None:
+        self._quit_button.setText(i18n.tr("window.close" if self._stays_in_tray() else "window.quit"))
+
     def closeEvent(self, event: QCloseEvent) -> None:
-        if self._tray_available and self._service.close_to_tray:
+        if self._stays_in_tray():
             # Só esconde: o app continua na bandeja.
             event.ignore()
             self.hide()

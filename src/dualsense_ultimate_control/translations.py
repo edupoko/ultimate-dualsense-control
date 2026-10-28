@@ -37,6 +37,7 @@ STRINGS: dict[str, dict[str, str]] = {
     "nav.controls": {"pt": "Controles", "en": "Controllers", "es": "Mandos"},
     "window.general": {"pt": "Geral", "en": "General", "es": "General"},
     "window.close": {"pt": "Fechar", "en": "Close", "es": "Cerrar"},
+    "window.quit": {"pt": "Sair", "en": "Quit", "es": "Salir"},
     "window.light": {"pt": "Barra de luz", "en": "Light bar", "es": "Barra de luz"},
     "window.leds": {"pt": "LEDs do controle", "en": "Controller LEDs", "es": "LEDs del mando"},
     "window.how_to_fix": {"pt": "Como resolver…", "en": "How to fix…", "es": "Cómo resolverlo…"},

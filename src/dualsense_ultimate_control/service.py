@@ -96,6 +96,7 @@ class LedService(QObject):
         log.info("Manter na bandeja ao fechar: %s", "ligado" if enabled else "desligado")
         self._store.close_to_tray = bool(enabled)
         self._save()
+        self.settings_changed.emit()
 
     @property
     def emulation(self) -> bool:
