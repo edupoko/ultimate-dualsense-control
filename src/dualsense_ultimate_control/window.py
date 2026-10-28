@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtCore import QPoint, QRect, Qt, QTimer, Signal
+from PySide6.QtGui import QCloseEvent, QGuiApplication
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication,
@@ -29,6 +29,8 @@ from .permissions import RuleInstaller
 from .profile_picker import ProfilePicker
 from .profiles_dialog import ProfilesDialog
 from .service import LedService
+from . import theme
+from .responsive import Columns, stack
 from .theme import SideNav, section
 from .testpanel.window import TestWindow
 from .widgets import (
@@ -53,6 +55,8 @@ ICON_PATH = Path(__file__).with_name("icons") / "dualsense-ultimate-control.svg"
 
 # Título de cada página na lista lateral.
 PAGE_TITLES = {"controls": "nav.controls", "test": "test.title", "profiles": "profiles.title", "logs": "log.title", "settings": "nav.settings"}
+# Páginas que rolam inteiras; as outras cuidam da própria rolagem (uma barra por página, nunca aninhada).
+SCROLLED_PAGES = ("controls", "settings")
 
 
 def app_icon() -> QIcon:
@@ -83,13 +87,13 @@ class MainWindow(QWidget):
         self._asked_permission = False
         self.setWindowTitle("DualSense Ultimate Control")
         self.setWindowIcon(app_icon())
-        self.setMinimumWidth(560)
-        self.resize(900, 680)
+        self.setMinimumSize(*theme.WINDOW_MIN_SIZE)
+        self.resize(*theme.WINDOW_DEFAULT_SIZE)
 
         # Tudo abre dentro desta janela: a lista à esquerda troca a página da direita.
         root = QHBoxLayout(self)
         self._nav = SideNav()
-        self._nav.setFixedWidth(200)
+        self._nav.setFixedWidth(theme.NAV_WIDTH)
         root.addWidget(self._nav)
         column = QVBoxLayout()
         root.addLayout(column, 1)
@@ -102,7 +106,7 @@ class MainWindow(QWidget):
         # Páginas criadas só na primeira visita; a ordem é a da lista.
         self._page_keys = ["controls", "test"] + (["profiles"] if emulation is not None else []) + ["logs", "settings"]
         self._pages: dict[str, QWidget] = {}
-        self._scrolls: dict[str, QScrollArea] = {}
+        self._holders: dict[str, QWidget] = {}  # o que o stack mostra: a página ou a área que a rola
         self._current: str | None = None
         self._help_slots: dict[str, QVBoxLayout] = {}
         for key in self._page_keys:
@@ -124,12 +128,13 @@ class MainWindow(QWidget):
         layout.addWidget(self._build_bluetooth_notice())
 
         layout.addWidget(self._build_permission_banner())
-        layout.addWidget(self._build_light_group())
-        layout.addWidget(self._build_players_group())
-
+        # Janela larga: luz à esquerda; LEDs, emulação e perfil à direita.
+        right = [self._build_players_group()]
         if emulation is not None:
-            layout.addWidget(EmulationRow(service, emulation))
-            layout.addWidget(ProfilePicker(service))
+            right += [EmulationRow(service, emulation), ProfilePicker(service)]
+        right_column = stack(*right, QWidget(), stretch=(0,) * len(right) + (1,))
+        self._columns = Columns(stack(self._build_light_group(), QWidget(), stretch=(0, 1)), right_column)
+        layout.addWidget(self._columns)
 
         layout.addStretch(1)
         self._add_page("controls", controls)
@@ -147,6 +152,38 @@ class MainWindow(QWidget):
         service.status_changed.connect(self._on_status)
         self._sync()
         self._on_status(service.status)
+        self._restore_geometry()
+
+    # --- tamanho lembrado (F5.4)
+
+    def _restore_geometry(self) -> None:
+        """Volta ao tamanho e posição da última vez, sem passar do mínimo nem da tela disponível."""
+        saved, maximized = self._service.window_geometry
+        if saved:
+            x, y, width, height = saved
+            screen = QGuiApplication.screenAt(QPoint(x + width // 2, y + height // 2))
+            area = (screen or QGuiApplication.primaryScreen()).availableGeometry()
+            width = max(self.minimumWidth(), min(width, area.width()))
+            height = max(self.minimumHeight(), min(height, area.height()))
+            if screen is not None:  # a tela onde ela estava ainda existe: mantém a posição, dentro dela
+                x = min(max(x, area.left()), area.right() - width + 1)
+                y = min(max(y, area.top()), area.bottom() - height + 1)
+                self.setGeometry(QRect(x, y, width, height))
+            else:
+                self.resize(width, height)
+        if maximized:
+            self.setWindowState(self.windowState() | Qt.WindowState.WindowMaximized)
+
+    def _save_geometry(self) -> None:
+        maximized = self.isMaximized()
+        rect = self.normalGeometry() if maximized else self.geometry()
+        if rect.isValid():
+            self._service.set_window_geometry([rect.x(), rect.y(), rect.width(), rect.height()], maximized)
+
+    def hideEvent(self, event) -> None:
+        # Chega ao ir para a bandeja e ao sair do app (que esconde as janelas antes de encerrar).
+        self._save_geometry()
+        super().hideEvent(event)
 
     def _build_notice(self, text_key: str, kind: str) -> tuple[QFrame, QWidget]:
         """Aviso com "Como resolver…"; a explicação abre logo abaixo dele, dentro da página."""
@@ -314,7 +351,7 @@ class MainWindow(QWidget):
             self._add_page(key, self._create_page(key))
         self._current = key
         self._pages[key].show()  # o "Fechar" da própria página pode tê-la escondido
-        self._stack.setCurrentWidget(self._scrolls[key])
+        self._stack.setCurrentWidget(self._holders[key])
         self._select_nav(key)
         return True
 
@@ -356,13 +393,15 @@ class MainWindow(QWidget):
 
     def _add_page(self, key: str, page: QWidget) -> None:
         page.setWindowFlags(Qt.WindowType.Widget)  # deixa de ser janela própria
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setWidget(page)
+        holder = page
+        if key in SCROLLED_PAGES:
+            holder = QScrollArea()
+            holder.setWidgetResizable(True)
+            holder.setFrameShape(QFrame.Shape.NoFrame)
+            holder.setWidget(page)
         self._pages[key] = page
-        self._scrolls[key] = scroll
-        self._stack.addWidget(scroll)
+        self._holders[key] = holder
+        self._stack.addWidget(holder)
 
     def _can_leave(self, key: str, target: str) -> bool:
         """Se a página tem edição pendente, ela pergunta (na própria página) e segue para `target` se o usuário aceitar."""

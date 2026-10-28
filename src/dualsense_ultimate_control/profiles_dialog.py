@@ -7,6 +7,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QBoxLayout,
     QCheckBox,
     QComboBox,
     QDoubleSpinBox,
@@ -27,6 +28,8 @@ from PySide6.QtWidgets import (
 
 from . import i18n
 from .confirm import ConfirmBar
+from .responsive import Columns
+from .dialogs import ask_irreversible
 from .actions import log_action
 from .emulator.config import default_profiles_dir
 from .emulator.mapping import (
@@ -161,6 +164,16 @@ class ProfileEditor(QWidget):
         layout.addWidget(self._build_trigger_effects())
         layout.addWidget(self._build_mouse())
         layout.addWidget(self._build_remap())
+        self._fit_narrow()
+
+    def _fit_narrow(self) -> None:
+        """Deixa o formulário caber numa página estreita: caixas de escolha não exigem a largura do
+        item mais longo e linhas com rótulo comprido quebram (rótulo em cima, campo embaixo)."""
+        for combo in self.findChildren(QComboBox):
+            combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+            combo.setMinimumContentsLength(10)
+        for form in self.findChildren(QFormLayout):
+            form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
 
     def _touch(self, *_args) -> None:
         for callback in self.changed_callbacks:
@@ -328,7 +341,10 @@ class ProfileEditor(QWidget):
             self._combos[source] = combo
             self._table.setCellWidget(row, 1, combo)
         self._table.setColumnWidth(0, 90)
-        self._table.setMinimumHeight(260)
+        # A tabela mostra todas as linhas e não rola: quem rola é o editor (uma barra só).
+        self._table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._table.resizeRowsToContents()
+        self._table.setFixedHeight(self._table.verticalHeader().length() + 2 * self._table.frameWidth())
         layout.addWidget(self._table)
         return group
 
@@ -398,6 +414,11 @@ class ProfileEditor(QWidget):
         return [part for part in parse_list(self._appids.text()) if not part.isdigit()]
 
 
+SIDE_WIDTH = 200  # lista de perfis na página larga
+NARROW_LIST_HEIGHT = 96
+QWIDGETSIZE_MAX = 16777215  # "sem limite" do Qt
+
+
 class ProfilesDialog(QWidget):
     back_requested = Signal()
 
@@ -424,13 +445,14 @@ class ProfilesDialog(QWidget):
         i18n.bind(note.setText, "profiles.app_note")
         root.addWidget(note)
 
-        body = QHBoxLayout()
-        root.addLayout(body, 1)
-        side = QVBoxLayout()
+        side_widget = QWidget()
+        side = QVBoxLayout(side_widget)
+        side.setContentsMargins(0, 0, 0, 0)
         self._list = QListWidget()
-        self._list.setMaximumWidth(200)
         self._list.currentItemChanged.connect(self._on_select)
         side.addWidget(self._list, 1)
+        self._side_buttons = QBoxLayout(QBoxLayout.Direction.LeftToRight)
+        side.addLayout(self._side_buttons)
         self._buttons = {}
         for key, handler in (
             ("new", self._new),
@@ -443,15 +465,18 @@ class ProfilesDialog(QWidget):
             i18n.bind(button.setText, f"profiles.{key}")
             button.clicked.connect(handler)
             self._buttons[key] = button
-            side.addWidget(button)
-        body.addLayout(side)
+            self._side_buttons.addWidget(button)
 
         self._editor = ProfileEditor()
         self._editor.changed_callbacks.append(self._mark_dirty)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setWidget(self._editor)
-        body.addWidget(scroll, 1)
+        # Página larga: lista e botões à esquerda, editor à direita; estreita: lista curta em cima.
+        self._body = Columns(side_widget, scroll, stretch=(0, 1))
+        self._body.mode_changed.connect(self._arrange_side)
+        self._arrange_side(False)
+        root.addWidget(self._body, 1)
 
         footer = QHBoxLayout()
         self._status = QLabel()
@@ -472,6 +497,12 @@ class ProfilesDialog(QWidget):
             self._list.setCurrentRow(0)
         else:
             self._show(Profile(), None)
+
+    def _arrange_side(self, wide: bool) -> None:
+        self._side_buttons.setDirection(QBoxLayout.Direction.TopToBottom if wide else QBoxLayout.Direction.LeftToRight)
+        self._list.setMaximumHeight(QWIDGETSIZE_MAX if wide else NARROW_LIST_HEIGHT)
+        self._list.setMinimumWidth(SIDE_WIDTH if wide else 0)
+        self._list.setMaximumWidth(SIDE_WIDTH if wide else QWIDGETSIZE_MAX)
 
     # --- lista
     def _reload(self, select: str | None = None) -> None:
@@ -586,7 +617,8 @@ class ProfilesDialog(QWidget):
     def _delete(self) -> None:
         if self._current is None:
             return
-        self._bar.ask(tr("profiles.confirm_delete", name=self._current), self._delete_current)
+        if ask_irreversible(self, tr("profiles.confirm_delete", name=self._current), tr("profiles.delete")):
+            self._delete_current()
 
     def _delete_current(self) -> None:
         if self._current is None:

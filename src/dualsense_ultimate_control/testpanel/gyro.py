@@ -101,6 +101,14 @@ class GyroPanel(QWidget):
     def collecting(self) -> bool:
         return self._collected is not None
 
+    def hideEvent(self, event) -> None:
+        # O diálogo fechou no meio da coleta: descarta, nada é salvo.
+        super().hideEvent(event)
+        if self._collected is not None:
+            self._collected = None
+            self._progress.setValue(0)
+            self._set_result("")
+
     # --- ações
 
     def start(self) -> None:

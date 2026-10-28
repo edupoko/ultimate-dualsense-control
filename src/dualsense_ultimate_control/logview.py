@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QTimer, QUrl, Signal
+from PySide6.QtCore import Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QColor, QDesktopServices, QFont, QFontDatabase, QGuiApplication, QSyntaxHighlighter, QTextCharFormat
 from PySide6.QtWidgets import (
     QComboBox,
@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QPlainTextEdit,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -46,6 +47,22 @@ class LogHighlighter(QSyntaxHighlighter):
             self.setFormat(0, len(text), self._action)
 
 
+class ElidedLabel(QLabel):
+    """Rótulo de uma linha que encolhe com reticências no meio (o texto inteiro fica na dica)."""
+
+    def __init__(self, text: str, parent: QWidget | None = None):
+        super().__init__(parent)
+        self._full = text
+        self.setToolTip(text)
+        self.setMinimumWidth(80)
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.setText(text)
+
+    def resizeEvent(self, event) -> None:
+        super().setText(self.fontMetrics().elidedText(self._full, Qt.TextElideMode.ElideMiddle, self.width()))
+        super().resizeEvent(event)
+
+
 class LogWindow(QWidget):
     """Página que mostra o log com atualização automática; permite filtrar, copiar, abrir a pasta e limpar."""
 
@@ -63,11 +80,11 @@ class LogWindow(QWidget):
         self._filter = QComboBox()
         self._filter.currentIndexChanged.connect(self.refresh)
         top.addWidget(self._filter)
-        top.addStretch(1)
-        self._path = QLabel(str(logs.log_path()))
+        top.addSpacing(12)
+        self._path = ElidedLabel(str(logs.log_path()))
         self._path.setEnabled(False)
         self._path.setTextInteractionFlags(self._path.textInteractionFlags() | self._path.textInteractionFlags().TextSelectableByMouse)
-        top.addWidget(self._path)
+        top.addWidget(self._path, 1)
         layout.addLayout(top)
 
         self._view = QPlainTextEdit()

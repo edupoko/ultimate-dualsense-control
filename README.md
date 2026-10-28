@@ -50,16 +50,24 @@ Depois, desconecte e reconecte o controle.
 
 ### Janela e bandeja
 
-A janela tem uma lista à esquerda com quatro páginas:
+A janela tem uma lista à esquerda com estas páginas:
 
 - **Controles**: barra de luz, LEDs de jogador, LED do microfone, desconexão (Bluetooth), emulação e perfil.
-- **Testar controle**: entradas ao vivo, saídas, calibração, giroscópio e teste rápido.
+- **Testar controle**: entradas e saídas ao vivo, com botões para o teste rápido e as calibrações.
 - **Perfis de emulação**: criar, editar, importar e exportar perfis.
 - **Registros**: os logs do app, com atualização automática e três filtros: tudo, só avisos e erros, e **Ações no controle**.
   O log guarda cada ação sua que muda ou testa um controle, numa linha curta com o controle (últimos 2 bytes do endereço e a conexão), por exemplo `[Controle bc:c7 · USB] cor → #FF0000`: cor e brilho (sliders registram só o valor final), LEDs de jogador e do microfone, emulação por controle, perfil padrão, criar/salvar/excluir/importar/exportar perfil, passos da calibração dos analógicos (com o resultado), resultado de cada item do teste rápido, testes de vibração, gatilhos e LEDs, e a calibração do giroscópio. Os endereços já apareciam no log; nenhum dado novo é guardado.
 - **Configurações**: idioma, tema, início com o sistema e comportamento ao fechar.
 
-Tudo abre dentro da própria janela. Perguntas e avisos aparecem numa faixa no topo da página.
+A janela tem no mínimo 720×520 (cabe numa tela de 1366×768), abre em 960×680 e lembra o tamanho, a posição e se estava maximizada. Com a janela larga (a partir de ~820 px), Controles, Entradas e Perfis ficam em duas colunas; mais estreita, uma coluna. Cada página rola no máximo numa barra, nunca uma dentro da outra.
+
+Onde cada coisa aparece:
+
+- **Navegação** entre páginas: sempre dentro da janela principal.
+- **Aviso ou pergunta leve e reversível** (descartar uma edição, uma falha): faixa no topo da página.
+- **Ação que não se desfaz ou que grava no controle** (gravar a calibração, reiniciar o controle, excluir um perfil): diálogo com **Cancelar** como botão padrão.
+- **Tarefa longa que pede atenção** (teste rápido, calibração dos analógicos e do giroscópio): diálogo próprio, aberto pela página Testar controle e fechado com **Fechar** ou Esc. Fechar no meio cancela o que estava em andamento.
+- Importar e exportar perfis usam o seletor de arquivos do sistema.
 
 Fechar a janela só a esconde, e o app continua na bandeja (desligue **Ao fechar, manter na bandeja** em Configurações para encerrar de vez). O menu da bandeja tem sliders de cor e brilho, cores rápidas, LEDs de jogador e o botão **Sair**.
 
@@ -75,11 +83,11 @@ Fechar a janela só a esconde, e o app continua na bandeja (desligue **Ao fechar
 
 - **Entradas**: o desenho do controle acende cada botão e o direcional, mostra os analógicos com o alcance e a circularidade, os dedos no touchpad, a pressão de L2/R2 em porcentagem e o gráfico do giroscópio.
 - **Saídas**: motores de vibração, efeitos dos gatilhos adaptáveis (resistência, arma, arco, máquina e vibração), sequência de LEDs, tom de áudio no alto-falante e no fone e medidor do microfone.
-- **Calibração**: centro e alcance dos analógicos, com histórico local. A calibração só vale até reiniciar o controle, a menos que você clique em **Salvar no controle**.
-- **Giroscópio**: mede o desvio com o controle parado e guarda a correção no `settings.json`, para o emulador usar.
-- **Teste rápido**: checklist guiado de todo o controle.
+- **Calibrar analógicos…**: centro e alcance dos analógicos, com histórico local. A calibração só vale até reiniciar o controle, a menos que você clique em **Salvar no controle** (que pede confirmação num diálogo).
+- **Calibrar giroscópio…**: mede o desvio com o controle parado e guarda a correção no `settings.json`, para o emulador usar.
+- **Teste rápido…**: checklist guiado de todo o controle.
 
-Cada teste desfaz o que ligou ao sair da aba: vibração, gatilhos e LEDs voltam ao normal.
+Os três últimos abrem em diálogo próprio. Cada teste desfaz o que ligou ao sair da aba ou fechar o diálogo: vibração, gatilhos e LEDs voltam ao normal.
 
 > **Atenção:** a calibração e o salvamento gravam no controle. Só salve depois de confirmar o resultado.
 

@@ -48,6 +48,9 @@ class AppSettings:
     default_profile: str = ""
     # Tema visual: "auto" (pelo desktop), "kde", "gnome" ou "own". Vale na próxima abertura do app.
     theme: str = "auto"
+    # Posição e tamanho da janela principal ([x, y, largura, altura]; vazio = padrão) e se estava maximizada.
+    window_geometry: list[int] = field(default_factory=list)
+    window_maximized: bool = False
 
 
 def default_settings_path() -> Path:
@@ -81,7 +84,7 @@ def load_settings(path: Path, strict: bool = False) -> AppSettings:
         return AppSettings(
             default, controllers, custom, bool(data.get("close_to_tray", True)), bool(data.get("auto_players", True)),
             str(data.get("language", "pt")), offsets, _uids(data.get("emulation")), str(data.get("default_profile", "")),
-            str(data.get("theme", "auto")),
+            str(data.get("theme", "auto")), _geometry(data.get("window_geometry")), bool(data.get("window_maximized", False)),
         )
     except FileNotFoundError:
         return AppSettings()
@@ -121,6 +124,15 @@ def _uids(value) -> list[str]:
     if not isinstance(value, list):
         return []
     return sorted({str(uid).lower() for uid in value if str(uid)})
+
+
+def _geometry(value) -> list[int]:
+    """[x, y, largura, altura] com tamanho positivo; qualquer outra coisa vira "sem tamanho salvo"."""
+    try:
+        x, y, width, height = (int(v) for v in value)
+    except (TypeError, ValueError):
+        return []
+    return [x, y, width, height] if width > 0 and height > 0 else []
 
 
 def _byte(value) -> int:
