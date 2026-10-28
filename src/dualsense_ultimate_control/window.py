@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .battery import describe, level_icon
 from . import i18n
 from .i18n import tr
 from .confirm import ConfirmBar
@@ -123,6 +124,8 @@ class MainWindow(QWidget):
         font.setBold(True)
         self._status.setFont(font)
         layout.addWidget(self._status)
+        self._battery = QLabel()
+        layout.addWidget(self._battery)
         layout.addWidget(ControllerTabs(service))
         layout.addWidget(self._build_steam_notice())
         layout.addWidget(self._build_bluetooth_notice())
@@ -148,6 +151,14 @@ class MainWindow(QWidget):
         footer.addWidget(self._quit_button)
         column.addLayout(footer)
 
+        # Bateria: relida do sysfs a cada 10 s só enquanto a janela está visível.
+        self._battery_timer = QTimer(self)
+        self._battery_timer.setInterval(10_000)
+        self._battery_timer.timeout.connect(service.refresh_batteries)
+        service.battery_changed.connect(self._sync_battery)
+        service.controllers_changed.connect(self._sync_battery)
+        i18n.hub.changed.connect(self._sync_battery)
+        self._sync_battery()
         service.settings_changed.connect(self._sync_quit_label)
         i18n.hub.changed.connect(self._sync_quit_label)
         self._sync_quit_label()
@@ -183,7 +194,21 @@ class MainWindow(QWidget):
         if rect.isValid():
             self._service.set_window_geometry([rect.x(), rect.y(), rect.width(), rect.height()], maximized)
 
+    def showEvent(self, event) -> None:
+        self._service.refresh_batteries()
+        self._battery_timer.start()
+        super().showEvent(event)
+
+    def _sync_battery(self) -> None:
+        uid = self._service.selected_uid
+        battery = self._service.battery_for(uid) if uid else None
+        self._battery.setVisible(battery is not None)
+        if battery is not None:
+            self._battery.setText(f"{level_icon(battery)} {describe(battery)}")
+            self._battery.setStyleSheet("color: #d9534f;" if battery.low else "")
+
     def hideEvent(self, event) -> None:
+        self._battery_timer.stop()
         # Chega ao ir para a bandeja e ao sair do app (que esconde as janelas antes de encerrar).
         self._save_geometry()
         super().hideEvent(event)

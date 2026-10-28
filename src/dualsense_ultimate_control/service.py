@@ -7,6 +7,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
+from .battery import POWER_ROOT, Battery, read_battery
 from .colors import MAX_CUSTOM_COLORS, PRESETS
 from .settings import LightSettings, load_settings, save_settings
 from . import bluetooth, i18n, theme
@@ -38,6 +39,8 @@ class LedService(QObject):
     steam_changed = Signal()
     # Mudou a lista de DualSense conectados pelo Bluetooth que o sistema não registrou.
     bluetooth_changed = Signal()
+    # Mudou a bateria de algum controle (lida do sysfs por `refresh_batteries`).
+    battery_changed = Signal()
 
     def __init__(
         self,
@@ -45,8 +48,11 @@ class LedService(QObject):
         leds_root: Path = LEDS_ROOT,
         steam_probe=hidraw_held_by_steam,
         bluetooth_probe=unregistered_dualsense,
+        power_root: Path = POWER_ROOT,
     ):
         super().__init__()
+        self._power_root = power_root
+        self._batteries: dict[str, Battery] = {}
         self._steam_probe = steam_probe
         self._bluetooth_probe = bluetooth_probe
         self._unregistered: list[str] = []
@@ -314,6 +320,21 @@ class LedService(QObject):
 
     def _selected_controller(self) -> Controller | None:
         return self._controllers.get(self._selected)
+
+    def battery_for(self, uid: str) -> Battery | None:
+        """Última bateria lida do controle, ou None se o controle não a expõe."""
+        return self._batteries.get(uid)
+
+    def refresh_batteries(self) -> None:
+        """Relê a bateria de todos os controles conectados; avisa só se algo mudou."""
+        current = {}
+        for c in self._controllers.values():
+            battery = read_battery(c.uid, self._power_root) if c.uid else None
+            if battery is not None:
+                current[c.uid] = battery
+        if current != self._batteries:
+            self._batteries = current
+            self.battery_changed.emit()
 
     def controller_for_uid(self, uid: str) -> Controller | None:
         return next((c for c in self._controllers.values() if c.uid == uid), None)
