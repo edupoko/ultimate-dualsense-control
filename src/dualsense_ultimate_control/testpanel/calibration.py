@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 from .. import i18n
 from ..actions import log_action
 from ..confirm import ConfirmBar
+from ..dialogs import ask_irreversible
 from ..ds5 import calibration
 from ..ds5.reports import InputState
 from ..i18n import tr
@@ -38,6 +39,8 @@ ACTION_LABELS = {
 }
 
 RECENT_STATES = 30
+# Perguntas que viram diálogo modal (ação que grava no controle ou o reinicia) e o texto do botão.
+IRREVERSIBLE = {"cal.confirm_save": "cal.do_save", "cal.confirm_reboot": "cal.do_reboot"}
 
 
 class CalibrationPanel(QWidget):
@@ -124,8 +127,8 @@ class CalibrationPanel(QWidget):
         layout.addWidget(self._result)
         self._history = QPlainTextEdit()
         self._history.setReadOnly(True)
-        self._history.setMaximumHeight(90)
-        layout.addWidget(self._history)
+        self._history.setMinimumHeight(100)
+        layout.addWidget(self._history, 1)  # no diálogo, o histórico fica com a altura que sobra
         self._result_key, self._result_values = "", {}
         i18n.hub.changed.connect(self._show_result)
         self._update_buttons()
@@ -257,13 +260,24 @@ class CalibrationPanel(QWidget):
     # --- apoio
 
     def _confirm(self, key: str, proceed: Callable[[], None]) -> None:
-        """Pergunta na faixa do topo e só então faz `proceed` (que confere de novo se o controle ainda serve);
-        os testes substituem este método."""
+        """Pergunta e só então faz `proceed` (que confere de novo se o controle ainda serve); os testes
+        substituem este método. Gravar e reiniciar perguntam num diálogo modal com "Cancelar" como
+        padrão; centro e alcance (só na RAM) perguntam na faixa do topo."""
         def confirmed() -> None:
             if self._ready() or (self._ranging and self._device is not None):
                 proceed()
 
+        if key in IRREVERSIBLE:
+            if ask_irreversible(self, tr(key), tr(IRREVERSIBLE[key])):
+                confirmed()
+            return
         self._bar.ask(tr(key), confirmed)
+
+    def hideEvent(self, event) -> None:
+        # O diálogo fechou no meio do alcance: sai da coleta e descarta, como ao soltar o controle.
+        super().hideEvent(event)
+        if self._ranging:
+            self.cancel_range()
 
     def _ready(self) -> bool:
         return self._device is not None and self._connection == "USB" and not self._ranging

@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QHideEvent, QShowEvent
-from PySide6.QtWidgets import QGroupBox, QTabWidget, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QGroupBox, QHBoxLayout, QLabel, QPushButton, QScrollArea, QTabWidget, QVBoxLayout, QWidget
 
 from .. import i18n
+from ..dialogs import PanelDialog
+from ..responsive import Columns, stack
 from ..ds5.reports import InputState
 from ..i18n import tr
 from ..service import LedService
@@ -19,8 +21,20 @@ from .widgets import ControllerView, ImuPlot, StickView, TouchpadView
 POLL_MS = 16
 
 
+def _scrolled(widget: QWidget) -> QScrollArea:
+    """Cada aba rola sozinha: o QTabWidget não herda a altura da aba mais alta."""
+    scroll = QScrollArea()
+    scroll.setWidgetResizable(True)
+    scroll.setFrameShape(QFrame.Shape.NoFrame)
+    scroll.setWidget(widget)
+    return scroll
+
+
 class TestWindow(QWidget):
-    """Lê o hidraw do controle escolhido só enquanto a página está visível."""
+    """Lê o hidraw do controle escolhido só enquanto a página está visível.
+
+    Entradas e Saídas são abas; Teste rápido e as calibrações abrem em diálogos próprios (F5.3),
+    mas os painéis continuam desta página: ela abre e solta o controle e repassa o estado."""
 
     def __init__(self, service: LedService, parent: QWidget | None = None):
         super().__init__(parent)
@@ -35,47 +49,55 @@ class TestWindow(QWidget):
         font.setBold(True)
         self._info.setFont(font)
         root.addWidget(self._info)
-        self._tabs = tabs = QTabWidget()
-        root.addWidget(tabs)
-        inputs = QWidget()
-        layout = QVBoxLayout(inputs)
-        self._outputs = OutputPanel(service)
-        tabs.addTab(inputs, "")
-        tabs.addTab(self._outputs, "")
+
         self._calibration = CalibrationPanel(service)
-        tabs.addTab(self._calibration, "")
         self._gyro_panel = GyroPanel(service)
-        tabs.addTab(self._gyro_panel, "")
         self._quick = QuickTestDialog(service)
-        self._quick.back_requested.connect(lambda: tabs.setCurrentIndex(0))
-        tabs.addTab(self._quick, "")
-        i18n.bind(lambda text: tabs.setTabText(0, text), "test.tab_inputs")
-        i18n.bind(lambda text: tabs.setTabText(1, text), "test.tab_outputs")
-        i18n.bind(lambda text: tabs.setTabText(2, text), "cal.tab")
-        i18n.bind(lambda text: tabs.setTabText(3, text), "gyro.tab")
-        i18n.bind(lambda text: tabs.setTabText(4, text), "quick.title")
+        self._dialogs: dict[str, PanelDialog] = {}
+        self._panels = {"quick": ("quick.title", self._quick), "calibration": ("cal.title", self._calibration),
+                        "gyro": ("gyro.title", self._gyro_panel)}
+        tools = QHBoxLayout()
+        for key, text_key in (("quick", "test.open_quick"), ("calibration", "test.open_calibration"), ("gyro", "test.open_gyro")):
+            button = QPushButton()
+            i18n.bind(button.setText, text_key)
+            button.clicked.connect(lambda _c=False, key=key: self.open_panel(key))
+            tools.addWidget(button)
+        tools.addStretch(1)
+        root.addLayout(tools)
+
+        self._tabs = tabs = QTabWidget()
+        root.addWidget(tabs, 1)
+        self._outputs = OutputPanel(service)
 
         self._view = ControllerView()
-        layout.addWidget(self._view, 4)
-
-        sticks = QHBoxLayout()
+        sticks_row = QWidget()
+        sticks = QHBoxLayout(sticks_row)
+        sticks.setContentsMargins(0, 0, 0, 0)
         self._sticks = (StickView(), StickView())
         for stick in self._sticks:
             sticks.addWidget(stick, 1)
-        layout.addLayout(sticks, 1)
-
         reset = QPushButton()
         i18n.bind(reset.setText, "test.reset_range")
         reset.clicked.connect(lambda: [stick.reset_range() for stick in self._sticks])
-        layout.addWidget(reset)
 
         self._touchpad = TouchpadView()
         self._gyro, self._accel = ImuPlot(), ImuPlot()
+        groups = {}
         for key, widget in (("test.touchpad", self._touchpad), ("test.gyro", self._gyro), ("test.accel", self._accel)):
             group = QGroupBox()
             i18n.bind(group.setTitle, key)
             QVBoxLayout(group).addWidget(widget)
-            layout.addWidget(group, 1)
+            groups[key] = group
+        # Janela larga: o desenho do controle e o touchpad à esquerda; analógicos e sensores à direita.
+        left = stack(self._view, groups["test.touchpad"], stretch=(3, 1))
+        right = stack(sticks_row, reset, groups["test.gyro"], groups["test.accel"], stretch=(2, 0, 1, 1))
+        inputs = QWidget()
+        QVBoxLayout(inputs).addWidget(Columns(left, right, stretch=(3, 2)))
+
+        tabs.addTab(_scrolled(inputs), "")
+        tabs.addTab(_scrolled(self._outputs), "")
+        i18n.bind(lambda text: tabs.setTabText(0, text), "test.tab_inputs")
+        i18n.bind(lambda text: tabs.setTabText(1, text), "test.tab_outputs")
 
         self._timer = QTimer(self)
         self._timer.setInterval(POLL_MS)
@@ -90,10 +112,24 @@ class TestWindow(QWidget):
     def hideEvent(self, event: QHideEvent) -> None:
         # Também chega quando a janela principal troca de página ou vai para a bandeja.
         super().hideEvent(event)
+        for dialog in self._dialogs.values():
+            dialog.reject()  # os painéis desligam os próprios efeitos ao se esconder
         self._close_device()
 
-    def open_quick_test(self) -> None:
-        self._tabs.setCurrentWidget(self._quick)
+    def open_panel(self, key: str) -> PanelDialog:
+        """Abre o Teste rápido ("quick") ou uma calibração ("calibration", "gyro") num diálogo próprio."""
+        dialog = self._dialogs.get(key)
+        if dialog is None:
+            title_key, panel = self._panels[key]
+            dialog = PanelDialog(title_key, panel, self)
+            if key == "quick":
+                self._quick.back_requested.connect(dialog.reject)
+            self._dialogs[key] = dialog
+        dialog.open()
+        return dialog
+
+    def open_quick_test(self) -> PanelDialog:
+        return self.open_panel("quick")
 
     def _close_device(self) -> None:
         self._timer.stop()

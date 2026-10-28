@@ -257,6 +257,18 @@ class LedService(QObject):
         self._save()
 
     @property
+    def window_geometry(self) -> tuple[list[int], bool]:
+        """Posição/tamanho salvos da janela principal ([x, y, w, h] ou []) e se estava maximizada."""
+        return list(self._store.window_geometry), self._store.window_maximized
+
+    def set_window_geometry(self, geometry: list[int], maximized: bool) -> None:
+        if (list(geometry), bool(maximized)) == self.window_geometry:
+            return
+        self._store.window_geometry = [int(v) for v in geometry]
+        self._store.window_maximized = bool(maximized)
+        self._save()
+
+    @property
     def needs_permission(self) -> bool:
         return bool(self._denied)
 

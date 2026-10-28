@@ -136,7 +136,7 @@ class QuickTestDialog(QWidget):
 
     Só funciona enquanto está visível: sair da aba (ou da página) para a sequência e desliga os efeitos."""
 
-    # "Voltar" ou ○ com a sequência parada: o painel volta para a aba de entradas.
+    # ○ com a sequência parada: o diálogo do teste rápido fecha.
     back_requested = Signal()
 
     def __init__(self, service: LedService, parent: QWidget | None = None):
@@ -221,11 +221,7 @@ class QuickTestDialog(QWidget):
         bottom.addWidget(self._summary, 1)
         self._start_button = QPushButton()  # o texto ("Começar"/"Recomeçar") vem de _refresh
         self._start_button.clicked.connect(self._start)
-        close = QPushButton()
-        i18n.bind(close.setText, "nav.back")
-        close.clicked.connect(self.back_requested)
-        bottom.addWidget(self._start_button)
-        bottom.addWidget(close)
+        bottom.addWidget(self._start_button)  # fechar fica com o diálogo (botão Fechar e Esc)
         root.addLayout(bottom)
 
         i18n.hub.changed.connect(self._refresh)

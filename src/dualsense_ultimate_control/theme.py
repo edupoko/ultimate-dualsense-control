@@ -30,6 +30,16 @@ THEME_ENV = "DUALSENSE_ULTIMATE_THEME"  # auto (padrão), kde, gnome ou own
 LEGACY_OWN_ENV = "DUALSENSE_ULTIMATE_NO_KDE_THEME"  # o nome antigo de "own"
 THEMES = ("kde", "gnome", "own")
 
+# Tamanhos da janela e das páginas (F5). O mínimo cabe numa tela de 1366×768 com painel.
+WINDOW_MIN_SIZE = (720, 520)
+WINDOW_DEFAULT_SIZE = (960, 680)
+NAV_WIDTH = 200  # barra lateral
+# Largura da página (sem a barra lateral) a partir da qual Controles e Entradas usam 2 colunas;
+# com a barra de 200 px, corresponde a uma janela de ~820 px.
+TWO_COLUMNS_MIN_WIDTH = 600
+COLUMN_SPACING = 16
+DIALOG_DEFAULT_SIZE = (620, 560)  # Teste rápido e assistentes de calibração
+
 
 @dataclass(frozen=True)
 class Tokens:
